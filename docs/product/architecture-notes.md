@@ -13,6 +13,8 @@
 - 采用模块化单体：公开站、后台、API 和定时任务共享一个项目与领域模型。
 - 公开文章页使用运行时 SSR 返回完整 HTML，以满足基础 SEO；首期不采用 SSG 和发布后重新构建流程。
 - 这些结论记录在 D-023。
+- 前端与工具链（2026-10-12）：Tailwind v4、shadcn/ui（Base UI）、React Hook Form + Zod 4、unified + Shiki、CodeMirror 6、ESLint + Prettier、Vitest + Playwright，数据先用假数据、之后 Drizzle + D1。见 D-126；工程约束见 D-127。
+- 已核对的版本事实（2026-10-12）：TanStack Start 官方文档仍标注 RC，npm `@tanstack/react-start` 1.168.61；Cloudflare 有官方 TanStack Start 指南；shadcn/ui 自 2026-07 起默认 Base UI；`eslint-plugin-better-tailwindcss` 4.9 支持 Tailwind v4。
 - 基础 SEO 与自动网站地图按 D-082 实现；具体框架接入和现有 Google 平台配置在上线前核对。仅使用公开内容，保持 D-034 的保存与发布边界。
 - 封面图和 OG 分享预览按 D-083 / D-084 实现；封面图由 AI 按用户操作生成，OG 图由应用根据已发布文章信息生成，不在每次分享时调用 AI。具体任务卡另行确定。
 
@@ -143,3 +145,30 @@ Queue 用来缓冲和批量处理大量相互独立的消息，适合批量抓�
 ### 当前讨论：资源与 Idea 数据模型
 
 D-045 至 D-048 已确定文章编辑器基本方向和图片生命周期边界；D-067 已确定文章使用 PostResource / PostIdea 参考资料列表；D-070 至 D-073 已确定 Idea 后台入口、共用编辑器、手动保存和排序；D-080 只确定 Idea 临时页面布局；D-087 至 D-092 已确定 AI 配置、Research Agent、两种 Chat 和 MCP 范围。最终管理端与公开页面 UI、AI 任务卡和参考资料 Agent 对话框后续单独设计，不纳入当前模型。
+
+## T3.4 · Cloudflare OG PNG 生成方案（2026-10-13）
+
+依据 `design.md §7`，输出固定 1200×630、始终浅色，只读取最终正式页面语言的已发布标题、摘要、分类与日期。不能通过任意 HTML / URL 输入读取草稿，不能为爬虫另设英文优先规则。
+
+| 比较项 | A：Satori standalone → SVG → resvg WASM → PNG | B：Cloudflare Browser Run 截图 API |
+|---|---|---|
+| 渲染位置 | 当前 Worker 内排版并栅格化，不启动浏览器 | Worker 发起服务端截图请求，由 Cloudflare 的 Chromium 渲染 |
+| 版式与字体 | 使用显式本地字体数据；须验证纸纹、字体切片、标题测量及省略号，不假定所有浏览器 CSS 都一致 | 可复用真实 HTML / CSS；等待字体就绪后截图，浏览器排版更接近 `k2-og.html` |
+| 新前置 | 安装 `satori@0.55.1`（实测不可用，已由 D-151 改为 0.32.0）、`@resvg/resvg-wasm@2.6.2`；WASM 以预编译模块导入，不运行动态编译 | Cloudflare account ID、服务端 API token 和 Browser Run 额度；不能将 token 发给浏览器 |
+| 资源与成本 | 无单独浏览器小时账单；占 Worker CPU / 内存。Free CPU 为10ms，请求是否满足须实际测量，不能先保证免费可用 | Free 每日10分钟浏览器时间；Paid 每月10小时，超出后$0.09/小时；Quick Actions 不收并发浏览器费用 |
+| 冷启动与可靠性 | 两份 WASM 分别为519494、2478606字节（0.32.0 的 yoga.wasm 为 71,736 字节，见下方实现结果）；实际 Worker 包体和运行耗时待实现测量，不能把 npm 解包大小当部署大小 | 每次未缓存生成另有截图 API 请求及浏览器渲染；账号额度或凭据故障会影响生成 |
+| 发布后更新 | 从公开版本读取并生成，可接入 T5.4 的保存不变 / 发布更新联验；不以构建时固定图片冒充动态发布 | 同样须读取公开版本，截图 HTML 不能混入编辑中内容；远端读取另有网络前置 |
+| 当前可执行性 | 没有账号凭据前置，安装授权后可在本地 workerd 验证真实 PNG | 现有仓库没有此能力所需凭据，当前只能完成方案研究，不能声称已实测 |
+
+按 D-147 推荐并选 A：这个站只需要固定版式的文章卡片，不值得为截图增加一个带凭据、额度和远程调用的运行依赖。选择不等于实现通过；须在真实 Worker 环境证明字体、纸纹、PNG尺寸、60px / 50px / 三行省略号，以及已发布语言隔离。Kai Li 已明确允许本次安装，两个包已按指定版本安装（D-149）；不部署，不提前把尚未运行验证的实现标成通过。
+
+**实现结果（2026-10-13，D-151）：**实测 satori@0.55.1 在 workerd 中无法加载（内嵌 harfbuzz wasm 运行时编译、读取 `self.location`），改用 0.32.0（yoga.wasm 71.7 kB，gzip 29.0 kB）+ resvg 2.6.2（2,478.6 kB，gzip 965.2 kB）。`wrangler deploy --dry-run` 显示两者均为 `compiled-wasm`，总上传 6112.04 KiB / gzip 1665.17 KiB。本地开发 workerd 中单张卡片墙钟时间约 170–240ms（含读取 14 个字体文件）；未测到 CPU 时间，但量级明显超过 Workers Free 的 10ms CPU，部署前须用 Paid 计划或在发布时生成并缓存，见 todo。
+
+已核实的官方与发布包来源：
+
+- Satori 字体、standalone 和字体路径嵌入：<https://github.com/vercel/satori#readme>；0.55.1 的 `init` 接受 `WebAssembly.Module`：<https://unpkg.com/satori@0.55.1/dist/standalone.d.ts>；现用 0.32.0 同样接受：<https://unpkg.com/satori@0.32.0/dist/standalone.d.ts>，其依赖不含 harfbuzzjs：<https://registry.npmjs.org/satori/0.32.0>。
+- resvg WASM 的 `initWasm` 接受 `WebAssembly.Module`，输出 `asPng()`：<https://unpkg.com/@resvg/resvg-wasm@2.6.2/index.d.ts>。
+- 两个发布包及二进制字节数：<https://registry.npmjs.org/satori/latest>、<https://registry.npmjs.org/@resvg/resvg-wasm/latest>、<https://unpkg.com/satori@0.55.1/?meta>、<https://unpkg.com/@resvg/resvg-wasm@2.6.2/?meta>。
+- Workers 只接受预编译 WASM：<https://developers.cloudflare.com/workers/runtime-apis/webassembly/>；当前额度和 CPU / 内存 / 包体限制：<https://developers.cloudflare.com/workers/platform/limits/>。
+- Browser Run 的 HTML / URL 截图与等待策略：<https://developers.cloudflare.com/browser-run/quick-actions/screenshot-endpoint/>；成本：<https://developers.cloudflare.com/browser-run/pricing/>。
+

@@ -1,0 +1,361 @@
+/* Admin (development only until real login, D-132). design.md §9 管理端, D-159. */
+/* React can hoist this route stylesheet before the global Tailwind sheet. */
+@layer properties, theme, base, components, utilities;
+
+@layer components {
+  .ad-root {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 0.95rem;
+  }
+  .ad-root .ui-button {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  /* design.md §6: visible 2px cinnabar keyboard focus, admin included. */
+  .ad-root :focus-visible {
+    outline: 2px solid var(--cinnabar);
+    outline-offset: 2px;
+  }
+  .ad-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 24px;
+    padding: 16px 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-nav nav {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+  }
+  .ad-nav a {
+    color: var(--mute);
+  }
+  .ad-nav a[aria-current='page'] {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-nav-side {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    color: var(--mute);
+    font-size: 0.86rem;
+  }
+  .ad-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 40px 88px;
+  }
+  .ad-page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .ad-page-head h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  .ad-state {
+    white-space: nowrap;
+  }
+  .ad-state-quiet {
+    color: var(--mute);
+  }
+  .ad-state-live {
+    color: var(--indigo);
+  }
+  .ad-state-modified {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-time {
+    color: var(--mute);
+    font-family: var(--num);
+    font-size: 0.8rem;
+  }
+  .ad-empty {
+    margin: 0;
+    padding: 32px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .ad-stack {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+  .ad-stack li {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-stack-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-top: 6px;
+    font-size: 0.86rem;
+  }
+  .ad-main {
+    min-width: 0;
+  }
+  .ad-shared {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 24px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .ad-shared legend {
+    padding: 0 6px;
+    color: var(--mute);
+    font-size: 0.86rem;
+  }
+  .ad-shared label,
+  .ad-content label {
+    display: grid;
+    gap: 6px;
+  }
+  .ad-shared small {
+    color: var(--mute);
+  }
+  .ad-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ad-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+  }
+  .ad-tags label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ad-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-tab {
+    padding: 8px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--mute);
+    font: inherit;
+    cursor: pointer;
+  }
+  .ad-tab.is-active {
+    border-bottom-color: var(--ink);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-content {
+    display: grid;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .ad-body-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ad-toggle {
+    display: flex;
+    gap: 4px;
+  }
+  .ad-body {
+    min-height: 360px;
+    font-family: var(--num);
+    line-height: 1.6;
+    resize: vertical;
+  }
+  .ad-statusline {
+    margin: 0;
+  }
+  .ad-actions {
+    display: grid;
+    gap: 8px;
+  }
+  .ad-buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .ad-primary {
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-feedback {
+    margin: 0;
+    font-size: 0.86rem;
+  }
+  .ad-ok {
+    color: var(--indigo);
+  }
+  .ad-error {
+    color: var(--cinnabar);
+  }
+  .ad-references {
+    display: grid;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .ad-references h2,
+  .ad-references summary {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ad-refs {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ad-refs p {
+    margin: 0 0 6px;
+    color: var(--ink-2);
+  }
+  .ad-ref-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.86rem;
+  }
+  .ad-ref-actions a {
+    color: var(--indigo);
+  }
+  .ad-editor .ad-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 24px;
+    margin: 0 0 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .ad-editor .ad-actions {
+    grid-auto-flow: column;
+    align-items: center;
+  }
+  .ad-editor .ad-shared {
+    margin: 24px 0;
+  }
+  .ad-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ad-field {
+    display: grid;
+    gap: 8px;
+  }
+  .ad-codemirror {
+    min-width: 0;
+  }
+  .ad-field-error {
+    color: var(--cinnabar);
+    font-size: 0.86rem;
+  }
+  .ad-muted {
+    margin: 0;
+    color: var(--mute);
+    font-size: 0.86rem;
+  }
+  .ad-preview {
+    min-height: 360px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .ad-quick {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .ad-after {
+    margin-top: 16px;
+  }
+  .ad-idea-text {
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  .ad-taxonomy strong {
+    font-weight: 600;
+  }
+  .ad-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: color-mix(in srgb, var(--paper) 75%, transparent);
+  }
+  .ad-dialog {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 440px);
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .ad-dialog h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+  .ad-dialog label {
+    display: grid;
+    gap: 6px;
+  }
+  @media (max-width: 960px) {
+    .ad-nav {
+      padding: 16px 28px;
+    }
+    .ad-page {
+      padding: 24px 28px 88px;
+    }
+  }
+  @media (max-width: 640px) {
+    .ad-nav {
+      padding: 12px 20px;
+    }
+    .ad-nav-side {
+      margin-left: 0;
+    }
+    .ad-page {
+      padding: 20px 20px 88px;
+    }
+    .ad-editor .ad-actions {
+      grid-auto-flow: row;
+    }
+  }
+}

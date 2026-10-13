@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>做过的东西 — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<link rel="stylesheet" href="k2.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper.html"><span class="seal">KL</span>Kai Li</a>
+  <!-- Projects 不在顶栏（D-113），入口是首页「做过的小东西」的「全部 →」 -->
+  <nav><a href="#">写作</a><a href="k2-books.html">书架</a></nav>
+  <span class="lang"><b>中</b> / <a href="k2-projects-en.html">EN</a></span>
+  <span class="theme" role="group" aria-label="主题"><button data-mode="light">浅</button> / <button data-mode="dark">深</button> / <button data-mode="system">自动</button></span>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1>做过的东西</h1>
+    <!-- 占位：Kai Li 自己的一句话 -->
+    <p>都是先为自己或家里人做的小工具。每个都还在线上，代码都公开。</p>
+  </div>
+  <ul class="plain projects" id="projects"></ul>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">邮件</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>排版：思源宋体 · 霞鹜文楷 · Inter</span></div></div></footer>
+
+<script src="personal-data.js"></script>
+<script>
+  document.getElementById("projects").innerHTML = made.map(p => `
+    <li>
+      <div class="thumb"><img src="img/${p.img}.png" alt="${p.name} 的首页截图"></div>
+      <div>
+        <div class="name"><b>${p.name}</b><em class="pill ${p.status === "在维护" ? "on" : ""}">${p.status}</em></div>
+        <p class="why">${p.why}</p>
+        <p class="intro">${p.intro}</p>
+        <div class="links"><a class="ext" href="#">${p.url} ↗</a><a class="ext" href="#">${p.repo} ↗</a></div>
+      </div>
+    </li>`).join("");
+</script>
+</body>
+</html>

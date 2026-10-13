@@ -1,0 +1,168 @@
+/* React can hoist this route stylesheet before the global Tailwind sheet. */
+@layer properties, theme, base, components, utilities;
+
+@layer components {
+  [data-design-catalogue] {
+    --catalogue-grain: var(--grain);
+    min-height: 100vh;
+    background-color: var(--paper);
+    background-image: var(--catalogue-grain);
+  }
+
+  [data-design-catalogue][data-texture='strong'],
+  [data-design-catalogue][data-texture='strong'] .k2-now {
+    background-size: 360px 360px;
+  }
+
+  [data-design-catalogue][data-texture='dots'] {
+    --catalogue-grain: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--dot) 18%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 8px 8px;
+  }
+
+  [data-design-catalogue] .k2-now {
+    background-image: var(--catalogue-grain);
+  }
+
+  [data-design-catalogue][data-texture='dots'] .k2-now {
+    background-size: 8px 8px;
+  }
+
+  .catalogue-texture-description,
+  .catalogue-texture-status {
+    max-width: 41rem;
+    font-family: var(--ui);
+    font-size: 0.92rem;
+  }
+
+  .catalogue-texture-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .catalogue-texture-option {
+    display: grid;
+    gap: 8px;
+    padding: 0;
+    border: 1px solid var(--line);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .catalogue-texture-option[aria-pressed='true'] {
+    border: 2px solid var(--cinnabar);
+  }
+
+  .catalogue-texture-option > span:last-child {
+    padding: 0 12px 12px;
+    font-family: var(--ui);
+    font-size: 0.84rem;
+  }
+
+  .catalogue-texture-swatch {
+    display: block;
+    height: 64px;
+    background-color: var(--paper);
+    background-image: var(--grain);
+  }
+
+  .catalogue-texture-option[data-texture-option='strong']
+    .catalogue-texture-swatch {
+    background-size: 360px 360px;
+  }
+
+  .catalogue-texture-option[data-texture-option='dots']
+    .catalogue-texture-swatch {
+    background-image: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--dot) 18%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 8px 8px;
+  }
+
+  .catalogue-texture-status {
+    margin: 16px 0 0;
+    color: var(--mute);
+  }
+
+  [data-design-catalogue] :focus-visible {
+    outline: 2px solid var(--cinnabar);
+    outline-offset: 2px;
+  }
+  .catalogue-intro {
+    padding: 40px 0 24px;
+    max-width: 41rem;
+  }
+
+  .catalogue-label {
+    margin: 0 0 16px;
+    font-family: var(--ui);
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--mute);
+  }
+
+  .catalogue-intro h2 {
+    font-family: var(--ui);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .catalogue-intro p {
+    font-size: 0.92rem;
+  }
+
+  .catalogue-example {
+    padding: 32px 0;
+    border-top: 1px solid var(--line);
+    min-width: 0;
+  }
+
+  .catalogue-example > .catalogue-label {
+    margin-bottom: 24px;
+  }
+
+  .catalogue-example .k2-hero {
+    padding-top: 0;
+  }
+
+  .catalogue-row,
+  .catalogue-covers {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .catalogue-row [role='status'] {
+    font-size: 0.92rem;
+  }
+
+  .catalogue-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .catalogue-empty {
+    padding: 16px 0;
+    color: var(--mute);
+    font-family: var(--ui);
+  }
+
+  .catalogue-field {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+    max-width: 24rem;
+  }
+}

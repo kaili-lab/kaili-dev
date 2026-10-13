@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bookshelf — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,800;1,8..60,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="k2.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper-en.html"><span class="seal">KL</span>Kai Li</a>
+  <nav><a href="#">Writing</a><a href="k2-books-en.html" aria-current="page">Bookshelf</a></nav>
+  <span class="lang"><a href="k2-books.html">中</a> / <b>EN</b></span>
+  <span class="theme" role="group" aria-label="Theme"><button data-mode="light">Light</button> / <button data-mode="dark">Dark</button> / <button data-mode="system">Auto</button></span>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1>Bookshelf</h1>
+    <!-- Placeholder: Kai Li's own sentence -->
+    <p>Books I've read, and the one line that stayed with me. Where I wrote about one, the post is linked.</p>
+  </div>
+  <div id="shelf"></div>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">Email</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>Set in Source Serif, Inter &amp; Cormorant</span></div></div></footer>
+
+<script src="personal-data-en.js"></script>
+<script>
+  // Reading now on top; finished books grouped by year, newest first (D-114)
+  const row = b => `
+    <li>
+      <div class="head"><i>${b.title}</i><span class="author">${b.author}</span></div>
+      <div class="side">${b.finished ? `<time>${b.finished.replace("-", ".")}</time>` : ""}<em class="pill ${b.status === "Reading" ? "on" : ""}">${b.status}</em></div>
+      ${b.note ? `<p class="note">${b.note}</p>` : ""}
+      ${b.post ? `<div class="wrote">Wrote about it: <a href="#">${b.post}</a> →</div>` : ""}
+    </li>`;
+  const group = (title, list, word) => `
+    <section class="books-group">
+      <h2 class="${word ? "word" : ""}">${title}<small>${list.length} ${list.length === 1 ? "book" : "books"}</small></h2>
+      <ul class="plain books">${list.map(row).join("")}</ul>
+    </section>`;
+
+  const reading = books.filter(b => b.status === "Reading");
+  const done = books.filter(b => b.finished).sort((a, b) => b.finished.localeCompare(a.finished));
+  const years = [...new Set(done.map(b => b.finished.slice(0, 4)))];
+  document.getElementById("shelf").innerHTML =
+    (reading.length ? group("Reading now", reading, true) : "") +
+    years.map(y => group(y, done.filter(b => b.finished.startsWith(y)))).join("");
+</script>
+</body>
+</html>

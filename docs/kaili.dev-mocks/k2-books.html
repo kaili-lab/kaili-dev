@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>书架 — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<link rel="stylesheet" href="k2.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper.html"><span class="seal">KL</span>Kai Li</a>
+  <nav><a href="#">写作</a><a href="k2-books.html" aria-current="page">书架</a></nav>
+  <span class="lang"><b>中</b> / <a href="k2-books-en.html">EN</a></span>
+  <span class="theme" role="group" aria-label="主题"><button data-mode="light">浅</button> / <button data-mode="dark">深</button> / <button data-mode="system">自动</button></span>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1>书架</h1>
+    <!-- 占位：Kai Li 自己的一句话 -->
+    <p>读过的书，和读完以后留下来的一句话。写过文章的，附在下面。</p>
+  </div>
+  <div id="shelf"></div>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">邮件</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>排版：思源宋体 · 霞鹜文楷 · Inter</span></div></div></footer>
+
+<script src="personal-data.js"></script>
+<script>
+  // 在读一组在最上面；读完的按读完年份倒序分组，组内按读完年月倒序（D-114）
+  const row = b => `
+    <li>
+      <div class="head"><i>${b.title}</i><span class="author">${b.author}</span></div>
+      <div class="side">${b.finished ? `<time>${b.finished.replace("-", ".")}</time>` : ""}<em class="pill ${b.status === "在读" ? "on" : ""}">${b.status}</em></div>
+      ${b.note ? `<p class="note">${b.note}</p>` : ""}
+      ${b.post ? `<div class="wrote">写过：<a href="#">${b.post}</a> →</div>` : ""}
+    </li>`;
+  const group = (title, list, word) => `
+    <section class="books-group">
+      <h2 class="${word ? "word" : ""}">${title}<small>${list.length} 本</small></h2>
+      <ul class="plain books">${list.map(row).join("")}</ul>
+    </section>`;
+
+  const reading = books.filter(b => b.status === "在读");
+  const done = books.filter(b => b.finished).sort((a, b) => b.finished.localeCompare(a.finished));
+  const years = [...new Set(done.map(b => b.finished.slice(0, 4)))];
+  document.getElementById("shelf").innerHTML =
+    (reading.length ? group("在读", reading, true) : "") +
+    years.map(y => group(y, done.filter(b => b.finished.startsWith(y)))).join("");
+</script>
+</body>
+</html>

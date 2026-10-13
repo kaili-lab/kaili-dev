@@ -1,0 +1,23 @@
+{
+  "introduction": "· 7 年后端全栈工程师，Java、Node.js、Python、React，支付、金融、分布式；可以从零独立开发。",
+  "rows": [
+    {
+      "label": "在读",
+      "text": "《A Philosophy of Software Design》",
+      "note": "第二遍"
+    },
+    {
+      "label": "在写",
+      "text": "收藏的推文，怎样才算真正读懂了",
+      "note": "草稿"
+    },
+    { "label": "在做", "text": "重写这个网站", "note": "v1" },
+    { "label": "在练", "text": "英语口语，每周两次", "note": "第 22 周" }
+  ],
+  "projectWhy": "我自己要练英语：从一句中文想法出发，练出地道的英文表达。",
+  "projectIntroduction": "先用中文写下想说的话，再自己试着用英文说，最后对照更自然的说法。错过的表达会按间隔重复排进复习，练的是自己真正想说的句子，而不是课本上的。",
+  "bookNote": "第二遍。这次在看「深模块」那几章怎么落到自己的代码里。",
+  "finishedBookNote": "第五章和第七章值得每年重读一次。",
+  "quote": "程序首先是写给人读的，只是顺便能让机器执行。",
+  "pageIntroduction": "都是先为自己或家里人做的小工具。每个都还在线上，代码都公开。"
+}

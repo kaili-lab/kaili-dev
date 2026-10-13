@@ -1,0 +1,14 @@
+{
+  "sourceUrl": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Regular.ttf",
+  "sourceSha256": "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009",
+  "sourceBytes": 25575676,
+  "sourceCharacters": 46490,
+  "sources": {
+    "src/assets/fonts/wenkai-inputs.json": "417b0da3b6d1ed561339ef6a7d1230668c7c04074dff4397d597e2a8c770310a",
+    "src/components/design-voice.json": "d1b25630c98c2377c4efe64ac4924bec90f06480983ed48fc080460f65d32c72",
+    "src/server/data/site-content.json": "30d0cdea9a4983a600b19f78a53ac4c3bbe398303d348ad14ba4aa821d8de2ae"
+  },
+  "sha256": "21730461dbe51652a61dad24a5b06a5747df2f248eb63fe4467c63170ebe3cd4",
+  "bytes": 52548,
+  "characters": 252
+}

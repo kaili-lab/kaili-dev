@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moving Say Right from Next.js to Cloudflare Workers — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,800;1,8..60,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="k2.css">
+<link rel="stylesheet" href="k2-article.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper-en.html"><span class="seal">KL</span>Kai Li</a>
+  <nav><a href="#" aria-current="page">Writing</a><a href="k2-books-en.html">Bookshelf</a></nav>
+  <span class="lang"><a href="k2-article.html">中</a> / <b>EN</b></span>
+  <span class="theme" role="group" aria-label="Theme"><button data-mode="light">Light</button> / <button data-mode="dark">Dark</button> / <button data-mode="system">Auto</button></span>
+</div></header>
+
+<!-- All body text is placeholder -->
+<main class="wrap article">
+  <div class="a-head">
+    <a class="back" href="#">← All posts</a>
+    <div class="meta-line"><a class="cat" href="#">Engineering</a><span>2026-08-18</span><span>12 min read</span></div>
+    <h1>Moving Say Right from Next.js to Cloudflare Workers</h1>
+    <p class="summary">Cold starts, KV consistency, the Durable Object bill, and the $19 a month it saved.</p>
+  </div>
+
+  <details class="toc" id="toc">
+    <summary data-open="Show" data-close="Hide">Contents</summary>
+    <span class="label">CONTENTS</span>
+    <ol>
+      <li><a href="#why">Why move</a></li>
+      <li><a href="#cold-start">Cold starts were a non-issue</a></li>
+      <li><a href="#kv">KV consistency was the real trap</a></li>
+      <li class="lv3"><a href="#kv-read">The minute of stale reads</a></li>
+      <li class="lv3"><a href="#kv-fix">Switching to a Durable Object</a></li>
+      <li><a href="#bill">The bill</a></li>
+      <li><a href="#after">After the move</a></li>
+    </ol>
+  </details>
+
+  <article class="prose">
+    <p>Say Right ran on Vercel for its first year. Traffic is small, but every practice session calls a model and writes a review record, and between cold starts and database connections the first request often took over two seconds. In August I moved the whole thing to Cloudflare Workers. These are the parts that actually took time.</p>
+
+    <h2 id="why">Why move</h2>
+    <p>Two reasons: <strong>latency</strong> and <strong>the bill</strong>. Most Say Right users are in Asia, while the functions and the database lived in US East. One practice session meant three round trips, and the network alone was half the wait.</p>
+    <p>Switching platforms was never the goal. If latency had been the only problem, moving regions would have been enough. What pushed me was the line item billed by execution time: it grew with every practice session, and most of that time was spent waiting for the model.</p>
+
+    <h2 id="cold-start">Cold starts were a non-issue</h2>
+    <p>Cold starts worried me most and turned out to matter least. Workers run in V8 isolates rather than containers, so the first request looks like every other one. What did need changing was code that assumed a long-lived process, such as opening a database connection at module scope:</p>
+    <pre data-lang="TS"><code><span class="c">// Before: connect once at module load and hope the process stays alive</span>
+<span class="k">const</span> db = <span class="k">new</span> Pool({ connectionString: process.env.<span class="n">DATABASE_URL</span> });
+
+<span class="c">// After: take the binding per request, keep no global state</span>
+<span class="k">export default</span> {
+  <span class="k">async</span> fetch(req, env) {
+    <span class="k">const</span> row = <span class="k">await</span> env.DB.prepare(<span class="s">"SELECT * FROM cards WHERE id = ?"</span>).bind(id).first();
+    <span class="k">return</span> Response.json(row);
+  },
+};</code></pre>
+    <p>The change is mechanical, but you have to find every instance. <code>grep -rn "process.env"</code> listed about forty places; it took an afternoon.</p>
+
+    <h2 id="kv">KV consistency was the real trap</h2>
+    <p>The Workers KV docs are clear: after a write, other locations may take a while to see the new value. I had read that sentence. I hadn't worked out where it would bite.</p>
+
+    <h3 id="kv-read">The minute of stale reads</h3>
+    <p>I kept “today's review queue” in KV. Finish a card and the queue updates; refresh right away and sometimes the card you just practised came back.</p>
+    <blockquote><p>KV is eventually consistent. Changes may take up to 60 seconds or more to be visible in other global network locations.</p></blockquote>
+    <p>KV wasn't the problem. I had put something that <strong>must read its own writes</strong> into a store that doesn't promise that.</p>
+
+    <h3 id="kv-fix">Switching to a Durable Object</h3>
+    <p>One Durable Object per user, with the queue inside it. Requests from the same user always reach the same object, so reads and writes are consistent by construction. The cost is learning how it bills, which the next section adds up.</p>
+    <figure>
+      <img src="img/say-right.png" alt="The Say Right practice page">
+      <figcaption>The practice page. Every finished card has to update the review queue immediately, which is exactly what KV can't do.</figcaption>
+    </figure>
+
+    <h2 id="bill">The bill</h2>
+    <p>One month before and after the move, with roughly the same users and practice sessions:</p>
+    <div class="table"><table>
+      <thead><tr><th>Item</th><th>Vercel + hosted DB</th><th>Cloudflare</th></tr></thead>
+      <tbody>
+        <tr><td>Compute</td><td class="num">$20.00</td><td class="num">$5.00</td></tr>
+        <tr><td>Database</td><td class="num">$7.00</td><td class="num">$0.00</td></tr>
+        <tr><td>Durable Objects</td><td class="num">—</td><td class="num">$3.10</td></tr>
+        <tr><td>Total</td><td class="num">$27.00</td><td class="num">$8.10</td></tr>
+      </tbody>
+    </table></div>
+    <p>About $19 a month saved. Not much, but it no longer grows with practice sessions, and that matters more than the number.</p>
+
+    <hr>
+
+    <h2 id="after">After the move</h2>
+    <ol>
+      <li>The first request dropped from over two seconds to around 300 ms.</li>
+      <li>No more reports of “the card I just did came back”.</li>
+      <li>Local development moved to <a href="#">wrangler dev</a>, which starts faster.</li>
+    </ol>
+    <p>If your app has little traffic but waits on an external service for every request, a platform that bills by execution time makes you pay for the waiting. That is the one thing I wish I had known earlier.</p>
+  </article>
+
+  <div class="a-end">
+    <div class="tags"><span class="label">TAGS</span><a class="pill" href="#">Cloudflare</a><a class="pill" href="#">Migration</a><a class="pill" href="#">Cost</a></div>
+    <!-- Previous = published earlier, Next = published later; an empty side stays empty (D-049) -->
+    <nav class="pager" aria-label="Previous and next posts">
+      <a class="prev" href="#"><small>← Previous</small><b>An AI-assisted workflow that doesn't rot the codebase</b></a>
+      <a class="next" href="#"><small>Next →</small><b>What six years of Java taught me about writing TypeScript services</b></a>
+    </nav>
+  </div>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">Email</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>Set in Source Serif, Inter &amp; Cormorant</span></div></div></footer>
+<script src="k2-article.js"></script>
+</body>
+</html>

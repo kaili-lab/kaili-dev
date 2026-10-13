@@ -1,1 +1,21 @@
 .DS_Store
+.playwright-mcp/
+.claude/
+
+# 不公开的思考与学习记录
+docs/notes/
+
+node_modules/
+dist/
+public/og-fonts/
+.tanstack/
+.wrangler/
+.output/
+src/routeTree.gen.ts
+test-results/
+playwright-report/
+coverage/
+.env
+.env.*
+!.env.example
+.dev.vars*

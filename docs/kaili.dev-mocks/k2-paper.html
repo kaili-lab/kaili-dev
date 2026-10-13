@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Kai Li — 首页（中文）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<link rel="stylesheet" href="k2.css">
+<style>
+  /* 首页专属样式；共享部分见 k2.css */
+  .hero { display: grid; grid-template-columns: 1.25fr 1fr; gap: 64px; padding: 72px 0 60px; }
+  .hero h1 { margin: 0; font-family: var(--title); font-weight: 900; font-size: 3.9rem; line-height: 1.16; }
+  .hero h1 span { white-space: nowrap; }
+  .hero h1 em { font-style: normal; color: var(--cinnabar); position: relative; }
+  .hero h1 em::after { content: ""; position: absolute; left: 0; right: 0; bottom: -.08em; height: .09em; background: var(--cinnabar); opacity: .35; border-radius: 2px; }
+  .intro { margin-top: 34px; max-width: 540px; font-family: var(--hand); font-size: 1.22rem; line-height: 1.8; color: var(--ink-2); }
+  .intro p { margin: 0 0 10px; }
+  .intro .name { font-family: var(--latin); font-size: 1.6rem; font-weight: 500; margin-right: 6px; color: var(--ink); }
+  .sign { margin-top: 20px; display: flex; gap: 22px; font-size: .9rem; color: var(--mute); }
+  .sign a:hover { color: var(--cinnabar); }
+
+  .now { align-self: start; background: var(--paper-2) var(--grain); border: 1px solid var(--line); border-radius: 4px; padding: 24px 26px 22px; position: relative; }
+  .now::before { content: ""; position: absolute; top: -1px; left: 26px; width: 48px; height: 3px; background: var(--cinnabar); }
+  .now-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .now-head h2 { margin: 0; font-family: var(--title); font-weight: 900; font-size: 1.3rem; }
+  .now-head span { font-family: var(--num); font-size: .72rem; color: var(--mute); }
+  .rows { list-style: none; margin: 14px 0 0; padding: 0; }
+  .rows li { display: grid; grid-template-columns: 42px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); font-family: var(--hand); font-size: 1.05rem; }
+  .rows b { font-family: var(--title); font-weight: 600; font-size: .9rem; color: var(--cinnabar); padding-top: 2px; }
+  .rows small { white-space: nowrap; font-family: var(--ui); font-size: .76rem; color: var(--mute); margin-left: 6px; }
+
+  .lower { display: grid; grid-template-columns: 1.25fr 1fr; gap: 64px; padding-top: 34px; border-top: 2px solid var(--ink); }
+
+  .feature { display: grid; grid-template-columns: 200px 1fr; gap: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+  .feature .t { font-family: var(--title); font-weight: 900; font-size: 1.45rem; line-height: 1.35; margin: 4px 0 8px; display: block; }
+  .feature .s { color: var(--ink-2); }
+  .feature:hover .t { color: var(--cinnabar); }
+
+  aside.side > section + section { margin-top: 40px; }
+  .made li { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+  .made b { font-family: var(--latin); font-weight: 500; font-size: 1.3rem; line-height: 1.1; display: block; }
+  .made span { font-family: var(--hand); font-size: .98rem; color: var(--ink-2); display: block; margin-top: 2px; }
+
+  .shelf li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 8px 0; border-bottom: 1px dotted var(--dot); font-size: .92rem; }
+  .shelf i { font-style: normal; font-family: var(--latin); font-size: 1.05rem; }
+  .shelf small { color: var(--mute); }
+  .shelf .pill { margin-left: auto; }
+
+  .quote { margin-top: 40px; padding: 22px 24px; background: var(--quote-bg); color: #efe6d3; border-radius: 4px; position: relative; }
+  html[data-theme="dark"] .quote { box-shadow: inset 0 0 0 1px var(--line); }
+  .quote::before { content: "“"; position: absolute; top: -18px; left: 16px; font-family: var(--latin); font-size: 4.6rem; color: var(--cinnabar); line-height: 1; }
+  .quote p { margin: 0; font-family: var(--hand); font-size: 1.15rem; line-height: 1.7; }
+  .quote small { display: block; margin-top: 10px; font-size: .76rem; color: #b8ad98; }
+
+  @media (max-width: 960px) {
+    .hero, .lower { grid-template-columns: 1fr; gap: 40px; }
+    .hero { padding: 48px 0 44px; }
+    .hero h1 { font-size: 3.2rem; }
+    .intro { max-width: none; }
+    aside.side { border-top: 1px solid var(--line); padding-top: 32px; }
+  }
+  @media (max-width: 640px) {
+    .hero { padding: 32px 0 36px; gap: 32px; }
+    .hero h1 { font-size: 2.35rem; line-height: 1.22; }
+    .hero h1 span { white-space: normal; }
+    .intro { margin-top: 24px; font-size: 1.08rem; }
+    .now { padding: 20px 18px 16px; }
+    .feature { grid-template-columns: 112px 1fr; gap: 16px; }
+    .feature .t { font-size: 1.18rem; }
+    .made li { grid-template-columns: 76px 1fr; gap: 12px; }
+    .quote { margin-top: 32px; }
+  }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper.html"><span class="seal">KL</span>Kai Li</a>
+  <nav><a href="#">写作</a><a href="k2-books.html">书架</a></nav>
+  <span class="lang"><b>中</b> / <a href="k2-paper-en.html">EN</a></span>
+  <span class="theme" role="group" aria-label="主题"><button data-mode="light">浅</button> / <button data-mode="dark">深</button> / <button data-mode="system">自动</button></span>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <!-- 大字与自我介绍已定（D-110） -->
+      <h1><span>永远的学生，</span><br><span>与 AI 一起<em>进化</em>。</span></h1>
+      <div class="intro">
+        <p><span class="name">Kai Li</span>· 7 年后端全栈工程师，Java、Node.js、Python、React，支付、金融、分布式；可以从零独立开发。</p>
+      </div>
+      <div class="sign"><a href="#">邮件</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a></div>
+    </div>
+
+    <aside class="now">
+      <div class="now-head"><h2>此刻</h2><span id="now-date"></span></div>
+      <ul class="rows">
+        <li><b>在读</b><span>《A Philosophy of Software Design》<small>第二遍</small></span></li>
+        <li><b>在写</b><span>收藏的推文，怎样才算真正读懂了<small>草稿</small></span></li>
+        <li><b>在做</b><span>重写这个网站<small>v1</small></span></li>
+        <li><b>在练</b><span>英语口语，每周两次<small>第 22 周</small></span></li>
+      </ul>
+    </aside>
+  </div>
+
+  <div class="lower">
+    <section>
+      <div class="sec-title"><h3>最近写的</h3><span class="label">WRITING</span><a href="#">全部文章 →</a></div>
+      <a class="feature" href="#" id="feature"></a>
+      <ul class="plain" id="posts"></ul>
+    </section>
+
+    <aside class="side">
+      <section class="made">
+        <!-- 「全部 →」只在项目多于 3 个时显示（D-113） -->
+        <div class="sec-title"><h3>做过的小东西</h3><a href="k2-projects.html" id="made-all" hidden>全部 →</a></div>
+        <ul class="plain" id="made"></ul>
+      </section>
+      <section class="shelf">
+        <!-- 最多 3 本，在读优先；多于 3 本才显示「全部 →」（D-114） -->
+        <div class="sec-title"><h3>书架</h3><a href="k2-books.html" id="books-all" hidden>全部 →</a></div>
+        <ul class="plain" id="books"></ul>
+      </section>
+      <div class="quote" id="quote"></div>
+    </aside>
+  </div>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">邮件</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>排版：思源宋体 · 霞鹜文楷 · Inter</span></div></div></footer>
+
+<script src="personal-data.js"></script>
+<script>
+  const HOME_MAX = 3;
+  document.getElementById("now-date").textContent = nowUpdated.replaceAll("-", ".");
+
+  const [f, ...rest] = posts;
+  document.getElementById("feature").innerHTML = `
+    <div class="cover"><div class="big">${f[3][0]}</div></div>
+    <div><span class="meta-line"><span class="cat">${f[3]}</span><span>${f[0]}</span><span>${f[4]} 分钟</span></span>
+      <span class="t">${f[1]}</span><span class="s">${f[2]}</span></div>`;
+  // 参照稿只画了第二篇（Say Right）的文章页
+  document.getElementById("posts").innerHTML = rest.map(([d, t, s, c], i) => `
+    <li class="post"><a href="${i === 0 ? "k2-article.html" : "#"}"><span class="t">${t}</span><span class="meta-line"><span class="cat">${c}</span><span>${d.slice(5)}</span></span><span class="s">${s}</span></a></li>`).join("");
+
+  document.getElementById("made").innerHTML = made.slice(0, HOME_MAX).map(p => `
+    <li><div class="thumb"><img src="img/${p.img}.png" alt=""></div><div><b>${p.name}</b><span>${p.why}</span><a class="ext" href="#">${p.url} ↗</a></div></li>`).join("");
+  document.getElementById("made-all").hidden = made.length <= HOME_MAX;
+
+  // 在读优先，其次按读完年月倒序
+  const shelf = [...books].sort((a, b) => (a.status === "在读" ? -1 : 0) - (b.status === "在读" ? -1 : 0) || (b.finished || "").localeCompare(a.finished || ""));
+  document.getElementById("books").innerHTML = shelf.slice(0, HOME_MAX).map(b => `
+    <li><i>${b.title}</i><small>${b.author}</small><em class="pill ${b.status === "在读" ? "on" : ""}">${b.status}</em></li>`).join("");
+  document.getElementById("books-all").hidden = books.length <= HOME_MAX;
+
+  document.getElementById("quote").innerHTML = `<p>${quote[0]}</p><small>— ${quote[1]}</small>`;
+</script>
+</body>
+</html>

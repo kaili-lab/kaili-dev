@@ -1,0 +1,15 @@
+{
+  "description": "Chinese WenKai voice copy comes from migrated application content and the development component catalogue. Article bodies use unicode-range fonts, not this static subset. HTML reference drafts and the canceled About draft are excluded.",
+  "json": ["src/components/design-voice.json"],
+  "data": {
+    "path": "src/server/data/site-content.json",
+    "fields": [
+      "introduction",
+      "rows[].text",
+      "projects[].why",
+      "projects[].introduction",
+      "books[].note",
+      "quote.text"
+    ]
+  }
+}

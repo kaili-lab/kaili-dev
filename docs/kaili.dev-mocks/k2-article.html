@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>把 Say Right 从 Next.js 搬到 Cloudflare Workers：踩的坑和省的钱 — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<!-- 正文要用思源宋体 400（D-117），比首页多加载一个字重 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="k2.css">
+<link rel="stylesheet" href="k2-article.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper.html"><span class="seal">KL</span>Kai Li</a>
+  <nav><a href="#" aria-current="page">写作</a><a href="k2-books.html">书架</a></nav>
+  <span class="lang"><b>中</b> / <a href="k2-article-en.html">EN</a></span>
+  <span class="theme" role="group" aria-label="主题"><button data-mode="light">浅</button> / <button data-mode="dark">深</button> / <button data-mode="system">自动</button></span>
+</div></header>
+
+<!-- 全部正文是占位内容 -->
+<main class="wrap article">
+  <div class="a-head">
+    <a class="back" href="#">← 全部文章</a>
+    <div class="meta-line"><a class="cat" href="#">工程</a><span>2026-08-18</span><span>12 分钟</span></div>
+    <h1>把 Say Right 从 Next.js 搬到 Cloudflare Workers：踩的坑和省的钱</h1>
+    <p class="summary">冷启动、KV 一致性、Durable Object 的账单模型，以及最后每月省下的 19 美元。</p>
+  </div>
+
+  <details class="toc" id="toc">
+    <summary data-open="展开" data-close="收起">目录</summary>
+    <span class="label">目录</span>
+    <ol>
+      <li><a href="#why">为什么要搬</a></li>
+      <li><a href="#cold-start">冷启动没有想象中的问题</a></li>
+      <li><a href="#kv">KV 的一致性才是坑</a></li>
+      <li class="lv3"><a href="#kv-read">读到旧值的那一分钟</a></li>
+      <li class="lv3"><a href="#kv-fix">改成 Durable Object</a></li>
+      <li><a href="#bill">账单</a></li>
+      <li><a href="#after">搬完以后</a></li>
+    </ol>
+  </details>
+
+  <article class="prose">
+    <p>Say Right 上线一年，一直跑在 Vercel 上。它的流量不大，但每次练习都要调一次模型、写一次复习记录，冷启动和数据库连接加在一起，第一次请求常常要等两秒多。今年八月我把它整个搬到了 Cloudflare Workers，这篇记下过程里真正花了时间的几件事。</p>
+
+    <h2 id="why">为什么要搬</h2>
+    <p>原因只有两个：<strong>延迟</strong>和<strong>账单</strong>。Say Right 的用户大多在亚洲，而原来的函数和数据库都在美国东部。一次练习要来回三趟，光网络就占了一半时间。</p>
+    <p>我没有把「换平台」当成目标。如果只是延迟问题，换个区域就够了；促使我动手的是账单里那笔按调用时长计费的费用，它和练习次数一起涨，而大部分时长都花在等模型返回上。</p>
+
+    <h2 id="cold-start">冷启动没有想象中的问题</h2>
+    <p>我原本最担心冷启动，结果这是最不需要操心的部分。Workers 用 V8 isolate 而不是容器，第一次请求和之后的请求几乎没有差别。真正要改的是那些默认「进程会活很久」的写法，比如在模块顶层建数据库连接：</p>
+    <pre data-lang="TS"><code><span class="c">// 之前：模块加载时建一次连接，指望进程一直活着</span>
+<span class="k">const</span> db = <span class="k">new</span> Pool({ connectionString: process.env.<span class="n">DATABASE_URL</span> });
+
+<span class="c">// 之后：每个请求从绑定里拿，不在全局保存状态</span>
+<span class="k">export default</span> {
+  <span class="k">async</span> fetch(req, env) {
+    <span class="k">const</span> row = <span class="k">await</span> env.DB.prepare(<span class="s">"SELECT * FROM cards WHERE id = ?"</span>).bind(id).first();
+    <span class="k">return</span> Response.json(row);
+  },
+};</code></pre>
+    <p>改法很机械，但要一处一处找。我用 <code>grep -rn "process.env"</code> 列出所有读环境变量的地方，大约四十处，一个下午改完。</p>
+
+    <h2 id="kv">KV 的一致性才是坑</h2>
+    <p>Workers KV 的文档写得很清楚：写入以后，其他地区可能要过一段时间才读得到新值。我读过这句话，但没有想到它会落在哪里。</p>
+
+    <h3 id="kv-read">读到旧值的那一分钟</h3>
+    <p>我把「今天的复习队列」放在 KV 里。用户练完一张卡片，队列更新；如果他马上刷新页面，有时候刚练过的卡片又出现了。</p>
+    <blockquote><p>KV is eventually consistent. Changes may take up to 60 seconds or more to be visible in other global network locations.</p></blockquote>
+    <p>问题不在 KV，而在我把一个<strong>需要读到自己刚写的值</strong>的东西放进了一个不保证这件事的存储里。</p>
+
+    <h3 id="kv-fix">改成 Durable Object</h3>
+    <p>每个用户一个 Durable Object，队列放在它里面。同一个用户的请求总是落到同一个对象上，读写自然是一致的。代价是要理解它的计费方式，下一节会算到。</p>
+    <figure>
+      <img src="img/say-right.png" alt="Say Right 的练习页面">
+      <figcaption>练习页。每练完一张卡片，复习队列都要立刻更新，这正是 KV 做不到的那件事。</figcaption>
+    </figure>
+
+    <h2 id="bill">账单</h2>
+    <p>搬家前后一个月的费用对比如下，用户量和练习次数基本持平：</p>
+    <div class="table"><table>
+      <thead><tr><th>项目</th><th>Vercel + 托管数据库</th><th>Cloudflare</th></tr></thead>
+      <tbody>
+        <tr><td>计算</td><td class="num">$20.00</td><td class="num">$5.00</td></tr>
+        <tr><td>数据库</td><td class="num">$7.00</td><td class="num">$0.00</td></tr>
+        <tr><td>Durable Object</td><td class="num">—</td><td class="num">$3.10</td></tr>
+        <tr><td>合计</td><td class="num">$27.00</td><td class="num">$8.10</td></tr>
+      </tbody>
+    </table></div>
+    <p>每月省下大约 19 美元。不多，但它不再随练习次数上涨，这一点比数字本身更重要。</p>
+
+    <hr>
+
+    <h2 id="after">搬完以后</h2>
+    <ol>
+      <li>第一次请求从两秒多降到三百毫秒左右。</li>
+      <li>「刚练过的卡片又出现」的反馈没有再收到。</li>
+      <li>本地开发换成了 <a href="#">wrangler dev</a>，比原来起得快。</li>
+    </ol>
+    <p>如果你的应用也是「流量不大、但每次请求都要等外部服务」的类型，按时长计费的平台会让你为等待付钱。这是这次搬家里我最想早点知道的一件事。</p>
+  </article>
+
+  <div class="a-end">
+    <div class="tags"><span class="label">标签</span><a class="pill" href="#">Cloudflare</a><a class="pill" href="#">迁移</a><a class="pill" href="#">成本</a></div>
+    <!-- 上一篇 = 更早发布的一篇，下一篇 = 更晚发布的一篇；没有对应文章时该格留空，另一格位置不变（D-049） -->
+    <nav class="pager" aria-label="上一篇和下一篇">
+      <a class="prev" href="#"><small>← 上一篇</small><b>一套不会把代码库写烂的 AI 辅助开发流程</b></a>
+      <a class="next" href="#"><small>下一篇 →</small><b>写了六年 Java 之后，我怎么写 TypeScript 服务</b></a>
+    </nav>
+  </div>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">邮件</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>排版：思源宋体 · 霞鹜文楷 · Inter</span></div></div></footer>
+<script src="k2-article.js"></script>
+</body>
+</html>

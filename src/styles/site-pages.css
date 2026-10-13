@@ -1,0 +1,128 @@
+.site-home-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 64px;
+  padding-top: 32px;
+  border-top: 2px solid var(--ink);
+}
+.site-home-side > section + section {
+  margin-top: 40px;
+}
+.k2-projects {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 20px;
+  color: var(--mute);
+  font-family: var(--ui);
+  font-size: 0.9rem;
+}
+.k2-language button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.k2-language button:hover {
+  color: var(--cinnabar);
+}
+.k2-footer-inner .k2-pending-link {
+  width: auto;
+  margin-left: 0;
+  font-size: inherit;
+}
+.site-not-found {
+  margin: 24px 0 0;
+}
+.site-not-found a {
+  color: var(--indigo);
+}
+@media (max-width: 960px) {
+  .site-home-lower {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .site-home-side {
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+  }
+}
+/* Writing list (design.md §9, D-153). */
+.site-writing-notice {
+  margin: 20px 0 0;
+  color: var(--ink-2);
+  font-family: var(--ui);
+  font-size: 0.9rem;
+}
+.site-writing-filters {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+.site-writing-filter {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-family: var(--ui);
+  font-size: 0.9rem;
+}
+.site-writing-filter-name {
+  flex-shrink: 0;
+  min-width: 3em;
+  color: var(--mute);
+}
+.site-writing-filter ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-writing-filter a {
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  color: var(--mute);
+}
+.site-writing-filter a:hover {
+  color: var(--cinnabar);
+}
+.site-writing-filter a.is-current {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+.site-writing-list {
+  margin-top: 24px;
+}
+.site-writing-empty {
+  margin-top: 24px;
+  padding: 32px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--ui);
+}
+.site-writing-empty p {
+  margin: 0;
+  color: var(--ink-2);
+}
+.site-writing-empty a {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--mute);
+}
+.site-writing-empty a:hover {
+  color: var(--cinnabar);
+}
+@media (max-width: 640px) {
+  .site-writing-filter {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

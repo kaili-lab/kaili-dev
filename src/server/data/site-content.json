@@ -1,0 +1,240 @@
+{
+  "zh": {
+    "introduction": "· 7 年后端全栈工程师，Java、Node.js、Python、React，支付、金融、分布式；可以从零独立开发。",
+    "nowUpdated": "2026-10-09",
+    "rows": [
+      {
+        "label": "在读",
+        "text": "《A Philosophy of Software Design》",
+        "note": "第二遍"
+      },
+      {
+        "label": "在写",
+        "text": "收藏的推文，怎样才算真正读懂了",
+        "note": "草稿"
+      },
+      {
+        "label": "在做",
+        "text": "重写这个网站",
+        "note": "v1"
+      },
+      {
+        "label": "在练",
+        "text": "英语口语，每周两次",
+        "note": "第 22 周"
+      }
+    ],
+    "projects": [
+      {
+        "name": "Say Right",
+        "image": "/images/thumbs/say-right.jpg",
+        "active": true,
+        "status": "在维护",
+        "url": "https://say-right.kaili.dev",
+        "repository": "https://github.com/kaili-lab/say-right",
+        "why": "我自己要练英语：从一句中文想法出发，练出地道的英文表达。",
+        "introduction": "先用中文写下想说的话，再自己试着用英文说，最后对照更自然的说法。错过的表达会按间隔重复排进复习，练的是自己真正想说的句子，而不是课本上的。"
+      },
+      {
+        "name": "Home Task",
+        "image": "/images/thumbs/home-task.jpg",
+        "active": true,
+        "status": "在维护",
+        "url": "https://task.kaili.dev",
+        "repository": "https://github.com/kaili-lab/home-task",
+        "why": "家里人总忘事，说一句话就能建好带时间的任务。",
+        "introduction": "家里人不愿意填表单，所以入口只有一个输入框。一句「周六上午带猫打疫苗」会被拆成日期、时段和提醒；拆不准的交给模型，再让人确认一次。"
+      },
+      {
+        "name": "Vocab Master",
+        "image": "/images/thumbs/vocab-master.jpg",
+        "active": false,
+        "status": "已停更",
+        "url": "https://vocab.kaili.dev",
+        "repository": "https://github.com/kaili-lab/vocab-master",
+        "why": "读英文时只学自己不认识的那几个词。",
+        "introduction": "贴进一段英文，标出自己不认识的词，只把这些词放进复习。核心的排程后来并进了 Say Right，这个项目就停在这里了。"
+      }
+    ],
+    "books": [
+      {
+        "title": "A Philosophy of Software Design",
+        "author": "John Ousterhout",
+        "status": "在读",
+        "reading": true,
+        "note": "第二遍。这次在看「深模块」那几章怎么落到自己的代码里。"
+      },
+      {
+        "title": "Designing Data-Intensive Applications",
+        "author": "Martin Kleppmann",
+        "status": "读完",
+        "reading": false,
+        "finished": "2026-08",
+        "note": "第五章和第七章值得每年重读一次。",
+        "articleSlug": "boundary-example"
+      },
+      {
+        "title": "置身事内",
+        "author": "兰小欢",
+        "status": "读完",
+        "reading": false,
+        "finished": "2026-05",
+        "note": "第一次看懂地方政府为什么那样花钱。"
+      },
+      {
+        "title": "The Pragmatic Programmer",
+        "author": "David Thomas, Andrew Hunt",
+        "status": "读完",
+        "reading": false,
+        "finished": "2026-02"
+      },
+      {
+        "title": "Thinking in Systems",
+        "author": "Donella H. Meadows",
+        "status": "读完",
+        "reading": false,
+        "finished": "2025-11",
+        "note": "存量和流量，这个视角后来到处都用得上。"
+      },
+      {
+        "title": "原则",
+        "author": "瑞·达利欧",
+        "status": "读完",
+        "reading": false,
+        "finished": "2025-07"
+      },
+      {
+        "title": "Refactoring",
+        "author": "Martin Fowler",
+        "status": "读完",
+        "reading": false,
+        "finished": "2025-03",
+        "note": "小步、每一步都能跑，这是后来写 AI 开发流程的底子。",
+        "articleSlug": "zh-only-example"
+      }
+    ],
+    "quote": {
+      "text": "程序首先是写给人读的，只是顺便能让机器执行。",
+      "source": "Harold Abelson，《计算机程序的构造和解释》序言（意译）"
+    }
+  },
+  "en": {
+    "introduction": "· Seven years as a backend and full-stack engineer. Java, Node.js, Python, React; payments, finance, distributed systems. I can build a product from the ground up, on my own.",
+    "nowUpdated": "2026-10-09",
+    "rows": [
+      {
+        "label": "Reading",
+        "text": "A Philosophy of Software Design",
+        "note": "second time"
+      },
+      {
+        "label": "Writing",
+        "text": "What it takes to actually understand a saved tweet",
+        "note": "draft"
+      },
+      {
+        "label": "Building",
+        "text": "This site, from scratch",
+        "note": "v1"
+      },
+      {
+        "label": "Practising",
+        "text": "Spoken English, twice a week",
+        "note": "week 22"
+      }
+    ],
+    "projects": [
+      {
+        "name": "Say Right",
+        "image": "/images/thumbs/say-right.jpg",
+        "active": true,
+        "status": "Maintained",
+        "url": "https://say-right.kaili.dev",
+        "repository": "https://github.com/kaili-lab/say-right",
+        "why": "I needed to practise English: start from a thought in Chinese, end up with natural English.",
+        "introduction": "Write what you want to say in Chinese, try saying it in English yourself, then compare with a more natural version. The phrases you missed come back on a spaced-repetition schedule, so you practise sentences you actually want to say, not textbook ones."
+      },
+      {
+        "name": "Home Task",
+        "image": "/images/thumbs/home-task.jpg",
+        "active": true,
+        "status": "Maintained",
+        "url": "https://task.kaili.dev",
+        "repository": "https://github.com/kaili-lab/home-task",
+        "why": "My family kept forgetting things. Say one sentence, get a task with a time attached.",
+        "introduction": "My family won't fill in forms, so there is only one input box. “Take the cat for her jab on Saturday morning” becomes a date, a time slot and a reminder; whatever the rules can't parse goes to a model, and a person confirms it once."
+      },
+      {
+        "name": "Vocab Master",
+        "image": "/images/thumbs/vocab-master.jpg",
+        "active": false,
+        "status": "Archived",
+        "url": "https://vocab.kaili.dev",
+        "repository": "https://github.com/kaili-lab/vocab-master",
+        "why": "Read in English and learn only the words you don't know yet.",
+        "introduction": "Paste in some English, mark the words you don't know, and only those go into review. The scheduling core later moved into Say Right, so this one stops here."
+      }
+    ],
+    "books": [
+      {
+        "title": "A Philosophy of Software Design",
+        "author": "John Ousterhout",
+        "status": "Reading",
+        "reading": true,
+        "note": "Second time through. This time I'm watching how “deep modules” show up in my own code."
+      },
+      {
+        "title": "Designing Data-Intensive Applications",
+        "author": "Martin Kleppmann",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2026-08",
+        "note": "Chapters 5 and 7 are worth rereading every year.",
+        "articleSlug": "boundary-example"
+      },
+      {
+        "title": "置身事内",
+        "author": "Lan Xiaohuan",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2026-05",
+        "note": "The first book that made local-government spending in China make sense to me."
+      },
+      {
+        "title": "The Pragmatic Programmer",
+        "author": "David Thomas, Andrew Hunt",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2026-02"
+      },
+      {
+        "title": "Thinking in Systems",
+        "author": "Donella H. Meadows",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2025-11",
+        "note": "Stocks and flows. I've used the lens everywhere since."
+      },
+      {
+        "title": "Principles",
+        "author": "Ray Dalio",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2025-07"
+      },
+      {
+        "title": "Refactoring",
+        "author": "Martin Fowler",
+        "status": "Finished",
+        "reading": false,
+        "finished": "2025-03",
+        "note": "Small steps, each one runnable. It became the basis of my AI workflow.",
+        "articleSlug": "zh-only-example"
+      }
+    ],
+    "quote": {
+      "text": "Programs must be written for people to read, and only incidentally for machines to execute.",
+      "source": "Abelson & Sussman, Structure and Interpretation of Computer Programs, preface"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+.tanstack
+.wrangler
+docs
+pnpm-lock.yaml
+src/routeTree.gen.ts
+test-results
+playwright-report
+coverage

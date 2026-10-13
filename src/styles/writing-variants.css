@@ -1,0 +1,170 @@
+/* T4.1b: development-only comparison of three writing-list variants. */
+/* React can hoist this route stylesheet before the global Tailwind sheet. */
+@layer properties, theme, base, components, utilities;
+
+@layer components {
+  .wv-filters {
+    display: grid;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .wv-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    font-family: var(--ui);
+    font-size: 0.9rem;
+  }
+  .wv-label {
+    flex-shrink: 0;
+    min-width: 3em;
+    color: var(--mute);
+    font-family: var(--ui);
+    font-size: 0.9rem;
+  }
+  .wv-row ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .wv-links .wv-row a {
+    padding-bottom: 2px;
+    border-bottom: 1px solid transparent;
+    color: var(--mute);
+  }
+  .wv-links .wv-row a:hover {
+    color: var(--cinnabar);
+  }
+  .wv-links .wv-row a.is-current {
+    border-bottom-color: var(--ink);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .wv-pills .wv-row ul {
+    gap: 8px;
+  }
+  .wv-pill {
+    padding: 2px 10px;
+    font-size: 0.84rem;
+  }
+  .wv-pill.is-current {
+    border-color: var(--ink);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .wv-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+    margin-top: 24px;
+  }
+  .wv-select {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    font-family: var(--ui);
+    font-size: 0.9rem;
+  }
+  .wv-select label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wv-select select,
+  .wv-select button {
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+  }
+  .wv-select button {
+    padding: 4px 12px;
+    border-color: var(--ink);
+    background: transparent;
+    cursor: pointer;
+  }
+  .wv-notice {
+    margin: 0;
+    color: var(--ink-2);
+    font-family: var(--ui);
+    font-size: 0.9rem;
+  }
+  .wv-notice-heading {
+    margin-top: 20px;
+  }
+  .wv-notice-panel {
+    margin-top: 24px;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-2);
+  }
+  .wv-list {
+    margin-top: 24px;
+  }
+  .wv-empty {
+    margin-top: 24px;
+    font-family: var(--ui);
+  }
+  .wv-empty p {
+    margin: 0;
+    color: var(--ink-2);
+  }
+  .wv-empty a {
+    color: var(--mute);
+  }
+  .wv-empty a:hover {
+    color: var(--cinnabar);
+  }
+  .wv-empty-rule {
+    padding: 32px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .wv-empty-rule a {
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .wv-empty-panel {
+    padding: 32px 24px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-2);
+    text-align: center;
+  }
+  .wv-empty-panel a {
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .wv-empty-inline {
+    padding: 16px 0;
+  }
+  .wv-empty-inline p {
+    display: inline;
+  }
+  .wv-empty-inline a {
+    margin-left: 12px;
+  }
+  @media (max-width: 640px) {
+    .wv-row {
+      flex-direction: column;
+      gap: 6px;
+    }
+    .wv-toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+  .wv-links,
+  .wv-pills,
+  .wv-select-variant {
+    display: block;
+  }
+}

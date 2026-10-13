@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kaili.dev 新版 · v1 开工前待定问题 · 决策文件 v1</title>
+<style>
+  body { margin: 0; background: #f6f4ee; color: #1b1a17; font: 16px/1.7 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: #6b665c; margin: 0 0 28px; }
+  h2 { font-size: 1.25rem; margin: 48px 0 12px; padding-top: 12px; border-top: 2px solid #1b1a17; }
+  h3 { font-size: 1.08rem; margin: 32px 0 8px; }
+  .item { background: #fff; border: 1px solid #ddd6c6; border-radius: 6px; padding: 18px 22px; margin: 18px 0; }
+  .label { display: inline-block; font-size: .78rem; font-weight: 600; color: #6b665c; letter-spacing: .04em; margin: 12px 0 2px; }
+  .label:first-of-type { margin-top: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 4px; font-size: .95rem; }
+  th, td { border: 1px solid #ddd6c6; padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #efebe1; font-weight: 600; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  .overview td:first-child { white-space: nowrap; }
+  .lean { background: #f1f6ee; border-left: 3px solid #5c8a4a; padding: 10px 14px; margin-top: 12px; }
+  .need { background: #fff6e6; border-left: 3px solid #c98a1b; padding: 10px 14px; }
+  .tag { font-size: .8rem; color: #8a5a00; background: #fff1d6; padding: 1px 6px; border-radius: 3px; }
+  details { margin-top: 12px; color: #55514a; font-size: .9rem; }
+  summary { cursor: pointer; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: .85em; background: #efebe1; padding: 1px 4px; border-radius: 3px; }
+  ul { padding-left: 1.3em; }
+  .answer { background: #1b1a17; color: #f1ece2; padding: 12px 16px; border-radius: 6px; font-size: .95rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>kaili.dev 新版 · v1 开工前待定问题</h1>
+<p class="sub">决策文件 v1 · 2026-10-09 · 对应 <code>docs/product/</code> 第 6 轮之后</p>
+
+<div class="answer">回复方式：直接写「F1：…，Q1a：A，Q2b：B…」即可。没把握的项可以跳过，我不会把没回答的当成同意。</div>
+
+<h2>速览</h2>
+<table class="overview">
+  <tr><th>编号</th><th>问题</th><th>类型</th><th>我的建议</th></tr>
+  <tr><td>F1</td><td>第 6 轮的版本切分（D-093 ~ D-097）是不是都经过你同意</td><td><span class="tag">需你提供</span></td><td>—</td></tr>
+  <tr><td>F2</td><td>GitHub 账号 hi-carry-lee 是不是你的</td><td><span class="tag">需你提供</span></td><td>—</td></tr>
+  <tr><td>Q1a</td><td>新站放在 kaili.dev 上时，现在的作品集站和旧链接怎么处理</td><td>需你裁决</td><td>新站占用 kaili.dev，旧路径跳到新站对应页面</td></tr>
+  <tr><td>Q1b</td><td>blog.kaili.dev 怎么处理（D-097 要重新定）</td><td>需你裁决</td><td>保留原样，作为作品演示，不迁移</td></tr>
+  <tr><td>Q2a</td><td>About 页放什么内容</td><td>需你裁决</td><td>沿用现在的内容，补成中英两版</td></tr>
+  <tr><td>Q2b</td><td>简历用什么形式提供</td><td>需你裁决</td><td>继续用 PDF，只提供英文版</td></tr>
+  <tr><td>Q3a</td><td>Projects 展示哪几个项目，首页放哪 3 个</td><td>需你裁决</td><td>4 个都列，首页照 mock 放 3 个</td></tr>
+  <tr><td>Q3b</td><td>项目要不要单独的详情页</td><td>需你裁决</td><td>要，把现有详情页内容补充后搬过来</td></tr>
+  <tr><td>Q4</td><td>About、简历、Projects 这类很少变的内容在哪里修改</td><td>需你裁决</td><td>写在代码仓库的文件里，不做后台编辑页</td></tr>
+  <tr><td>Q5a</td><td>首页「On GitHub」的最近提交，用不用实时数据</td><td>需你裁决</td><td>定时从 GitHub 拉取，失败时显示上次的数据</td></tr>
+  <tr><td>Q5b</td><td>「On GitHub」的置顶仓库列表从哪来，显示不显示星数</td><td>需你裁决</td><td>跟随 GitHub 置顶，不显示星数</td></tr>
+  <tr><td>Q6</td><td>文章分类有哪些，什么时候定</td><td>需你裁决</td><td>现在不定，写第一篇文章时在后台建；分类必填</td></tr>
+  <tr><td>Q7</td><td>v1 写文章时能不能把 Idea 挂成参考资料</td><td>需你裁决</td><td>能</td></tr>
+  <tr><td>Q8</td><td>置顶文章显示在哪里</td><td>需你裁决</td><td>所有文章列表里都排最前</td></tr>
+  <tr><td>Q9</td><td>没用上的文章图片，v1 要不要自动清理</td><td>需你裁决</td><td>v1 不清理，只记录图片被谁引用</td></tr>
+</table>
+
+<h2>已经直接改掉的不一致（只需知悉）</h2>
+<p>这些改动没有改变任何已定决策，只是让文档前后一致：</p>
+<ul>
+  <li><b>脉络（Timeline）的 mock 试排</b>：todo 里「导航加 Timeline、首页试排最近事件」还挂在 v1 的 mock 同步下，但脉络已划到「后续」。已移出 v1，指向 P2 · 脉络的已有条目。v1 的 mock 同步只剩「去掉 EN / 中 语言徽标列」。</li>
+  <li><b>mock 页脚的 RSS 链接</b>：D-085 已定第一版不做 RSS，但 mock 页脚还有 RSS。已加进 v1 的 mock 同步待办。</li>
+  <li><b>文章页「关联资源展示方式仍待确定」</b>：D-078 已经定了「公开文章不显示参考资料」。已把 requirements §2.4 和 todo 里对应的过时说法改为引用 D-078。</li>
+  <li><b>requirements §8</b>：唯一一条是 §7 里 D-088 的重复，已删除重复，改为「暂无」。</li>
+  <li><b>mock 路径</b>：D-002 里写的是旧路径 <code>ui-taste/briefs/…</code>。决策日志只追加、不改写，所以在 README 注明以 <code>docs/kaili.dev-mocks/a-ledger.html</code> 为准。</li>
+  <li><b>D-097（旧站迁移）</b>：你说没提过迁移。在 requirements、todo、README 里的相关位置都标了「待重新确认」，没有删除。等 Q1 定了，再在决策日志里追加一条新决策，替换 D-097。</li>
+  <li>requirements §1 导航和 §5 脉络的标题上，注明了脉络属于「后续」版本。</li>
+</ul>
+
+<h2>一、需你提供的事实</h2>
+
+<div class="item">
+  <h3>F1 · 第 6 轮的版本切分是不是你同意过的</h3>
+  <div class="need">
+    <p><b>为什么要问：</b>D-097（v1 替换旧站、迁移旧文章、做 301 跳转）和 D-093 ~ D-096 是在同一轮、同一天（2026-10-09）记进决策日志的。你说你没提过迁移。我在这个 app 里能搜到的所有会话记录（包括已归档的）里搜了「D-097」，没有结果。所以我查不到那一轮讨论的原文，也就无法判断是只有 D-097 记错了，还是整轮都没经过你确认。</p>
+    <p><b>需要你确认：</b>下面这几条你认不认？不认的标出来，我按「记错了」处理。</p>
+    <ul>
+      <li>D-093：分三版交付。v1 = 公开站 + 文章后台 + Idea；v1.1 = Resource 资源库 + Chrome 插件 + 后台关键词搜索；v2 = 全部 AI 功能；脉络放「后续」。</li>
+      <li>D-094：全部 AI 功能（AI 英文草稿、向量检索、AI 封面图、AI 模型配置、研究 Agent、MCP、两种 Chat）移到 v2。</li>
+      <li>D-095：公开文章搜索不进 v1。</li>
+      <li>D-096：v1 后台只做 GitHub 登录，密码登录和 Passkey 以后再加。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="item">
+  <h3>F2 · GitHub 账号 hi-carry-lee 是不是你的</h3>
+  <div class="need">
+    <p><b>为什么要问：</b>现在 kaili.dev 的「AI Blog Platform」项目页，源码链接指向 <code>github.com/hi-carry-lee/blog-v1</code>，不是 <code>kaili-lab</code>。你在 kaili-lab 主页上也置顶了一个 blog-v1。如果你有两个账号都在提交代码，Q5a 的「最近提交」要决定从哪个账号取，或者两个都取。</p>
+    <p><b>需要你回答：</b>hi-carry-lee 是不是你的账号？现在还在用它提交代码吗？</p>
+  </div>
+</div>
+
+<h2>二、需你裁决</h2>
+
+<!-- Q1 -->
+<div class="item">
+  <h3>Q1 · 旧站怎么处理（替代 D-097）</h3>
+  <p>你现在线上有两个站，新站上线时都会受影响，所以拆成两个问题。</p>
+
+  <h3>Q1a · kaili.dev（现在的作品集站）</h3>
+  <span class="label">这是什么</span>
+  <p>kaili.dev 现在是你的作品集站，有首页、Projects 列表、4 个项目详情页、About 页、一份简历 PDF，右上角有中英切换。新站本身就是「作品集 + 博客」（D-001）。如果新站也用 kaili.dev 这个域名，就必然会替换掉现在这个站，因为一个域名只能放一个站。所以真正要定的不是「替不替换」，而是<b>别人手里的旧链接点开后会怎样</b>。</p>
+  <span class="label">今天会发生什么</span>
+  <p>现在的旧链接有：<code>/about</code>、<code>/projects</code>、<code>/projects/home-task</code> 等 4 个详情页、<code>/kai-li-resume.pdf</code>。新站的页面都带语言前缀（D-027），比如 <code>/en/about</code>。如果什么都不做，这些旧链接在新站上线后会变成 404（页面不存在）。</p>
+  <p>我查到的一点：你的简历 PDF（英文，2 页）里只有一个链接，是首页 <code>https://kaili.dev</code>。首页在新站上会按浏览器语言自动跳转（D-027 已定），所以<b>简历上的链接不会坏</b>。别人有没有收藏或转发过具体的子页面链接，我查不到。</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>新站用 kaili.dev。旧路径跳到新站对应页面，例如 <code>/about</code> 按浏览器语言跳到 <code>/en/about</code> 或 <code>/zh/about</code>。新站没有对应页面的，跳到 Projects 列表。简历 PDF 保持同一个地址。</td><td>旧链接都还能用。工作量是一张「旧地址 → 新地址」对照表，共约 8 条，和首页的语言跳转是同一套机制。</td></tr>
+    <tr><td>B</td><td>新站用 kaili.dev，不管旧路径。</td><td>首页和简历链接正常（见上）；别人手里的子页面链接会 404。省掉一张小对照表。</td></tr>
+    <tr><td>C</td><td>新站换一个域名，旧站保留。</td><td>两个作品集站同时存在、内容重复；简历上的链接指向旧站。和 D-001「单站融合」冲突。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>只多一张约 8 条的对照表，就能保证所有旧链接都不失效。<br>前提：你在用或打算继续用 kaili.dev 这个域名（todo 里「域名：kaili.dev 沿用？」至今没定，选 A 或 B 就等于定了「沿用」）。如果你打算换域名，选 C，并告诉我新域名。</div>
+
+  <h3>Q1b · blog.kaili.dev</h3>
+  <span class="label">这是什么</span>
+  <p>blog.kaili.dev 不只是一个旧博客，它是你的作品之一「AI Blog Platform」。功能是 Markdown 写作、AI 生成摘要和封面图、按语义搜索文章。技术栈是 Next.js + PostgreSQL + OpenAI，源码在 <code>hi-carry-lee/blog-v1</code>。它列在现在 kaili.dev 的 Projects 页上，是 4 个项目之一。</p>
+  <span class="label">今天会发生什么</span>
+  <p>站上只有 <b>2 篇文章</b>，都是 2026-02-23 发的，分类都是 Personal：</p>
+  <ul>
+    <li>What Six Months of Remote Work Taught Me About Communication</li>
+    <li>Hi, I'm Cary</li>
+  </ul>
+  <p>所以「迁移旧文章」实际只涉及这 2 篇。真正要权衡的是：<b>把它下线，作品集里就少了一个能点开的在线演示。</b></p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>保留原样，作为作品演示继续运行。不迁移、不跳转。新站 Projects 里继续列它。</td><td>作品集保留 4 个可访问的项目。需要继续支付它的托管费用（托管在哪、每月多少钱我查不到）。2 篇文章只在旧站上有。</td></tr>
+    <tr><td>B</td><td>同 A，另外把那 2 篇文章手动复制到新站。</td><td>文章在新站也能看到。同一篇文章会出现在两个地方〔推断，未验证：搜索引擎可能把它们当成重复内容，影响不大〕。复制 2 篇的工作量可以忽略，不需要写迁移脚本。</td></tr>
+    <tr><td>C</td><td>下线 blog.kaili.dev，2 篇文章搬到新站，旧文章地址 301 跳转到新地址（也就是原来的 D-097）。</td><td>少维护一个站。作品集少一个在线演示，Projects 里的 AI Blog Platform 只能放源码链接或截图。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A</b>（如果你还想在新站保留那 2 篇文章，就选 B）。<br>前提：你仍把 AI Blog Platform 当作展示项目。如果你本来就打算把它从作品集里拿掉，或者不想再为它付托管费，选 C。</div>
+
+  <details><summary>依据与出处</summary>
+    <ul>
+      <li>kaili.dev 首页、/projects、/about、/projects/home-task、/projects/ai-blog：2026-10-09 实际访问</li>
+      <li>blog.kaili.dev、blog.kaili.dev/posts：2026-10-09 实际访问，列表页没有分页</li>
+      <li>简历 PDF：下载后用 pdftotext 提取，英文，2 页，唯一链接是 https://kaili.dev</li>
+      <li>D-097：<code>decisions.md</code> 第 6 轮；会话记录搜索「D-097」无结果</li>
+    </ul>
+  </details>
+</div>
+
+<!-- Q2 -->
+<div class="item">
+  <h3>Q2 · About 页和简历</h3>
+  <span class="label">这是什么</span>
+  <p>mock 首页的自我介绍下面有一个「Résumé」链接，页脚也有一个；顶栏有 About。需求文档里关于这两样只有一句「About 页、Résumé 维护方式待定，要双语」，具体<b>放什么内容、简历用什么形式</b>都没定。不定的话，开发时就不知道 About 页要做成什么样。</p>
+  <span class="label">今天会发生什么（现在的 kaili.dev）</span>
+  <ul>
+    <li>About 页：一段自我介绍（后端/全栈、6 年以上 Java、用 AI 辅助开发、接受远程、UTC+8），加 3 段工作经历（2020.01–2024.01 后端开发；2024.04–2026.08 全栈开发；2026.08 至今某创业公司核心全栈，兼职远程）。</li>
+    <li>简历：一份英文 PDF，2 页，地址 <code>/kai-li-resume.pdf</code>，里面有电话和邮箱。</li>
+  </ul>
+
+  <h3>Q2a · About 页放什么</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>沿用现在的内容（自我介绍 + 工作经历），补齐中英两版。</td><td>v1 只需要翻译和排版，你几乎不用写新内容。</td></tr>
+    <tr><td>B</td><td>在 A 的基础上扩充，例如技能清单、做事方式、正在找什么样的工作。</td><td>对招聘方信息更完整；你要先写出这些内容（中英两版），v1 上线会等这部分写完。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>上线后随时可以再补。<br>前提：你对现在的 About 内容基本满意。如果你觉得现在的版本不够好、正好想借这次重写，选 B。</div>
+
+  <h3>Q2b · 简历用什么形式</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>继续用 PDF，只提供英文版。</td><td>和现在一样，方便招聘方下载和转发。更新简历时换一个文件即可。中文界面下点开的也是英文简历。</td></tr>
+    <tr><td>B</td><td>PDF，中英各一份，按当前界面语言给对应的一份。</td><td>你需要多维护一份中文 PDF，两份要同步更新。</td></tr>
+    <tr><td>C</td><td>做一个网页版简历页面（中英两版），可以另外附 PDF。</td><td>能被搜索引擎收录，风格和全站一致；但内容和 About 有大量重复，要维护两处，v1 多一个页面。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>你的求职目标是海外远程（requirements §2.2.1），招聘方读的是英文简历。<br>前提：你不打算投国内岗位。如果也要投国内，选 B。</div>
+</div>
+
+<!-- Q3 -->
+<div class="item">
+  <h3>Q3 · Projects 展示哪些项目，要不要详情页</h3>
+  <span class="label">这是什么</span>
+  <p>mock 首页的 Projects 区是 3 张卡片，每张有截图、项目名、一句话描述、技术栈、在线地址、源码链接。右上角「All projects →」通往一个完整的项目列表页。D-002 定了这个样式，但没定<b>放哪些项目</b>，也没定<b>点进去有没有详情页</b>。</p>
+  <span class="label">今天会发生什么</span>
+  <ul>
+    <li>现在的 kaili.dev 有 4 个项目：Home Task、AI Blog Platform、Vocab Master、Say Right。首页只突出 Home Task 和 Say Right 两个。</li>
+    <li>mock 首页放的 3 个是 Home Task、Say Right、Vocab Master，没有 AI Blog Platform。</li>
+    <li>现在每个项目都有详情页，但很短。以 Home Task 为例，正文约 70 词：一句话介绍、「How it works」两条、「Built with」一行技术栈，加在线地址和源码按钮。</li>
+  </ul>
+
+  <h3>Q3a · 展示哪些项目</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>列表页列全部 4 个；首页照 mock 放 Home Task、Say Right、Vocab Master。</td><td>和 mock 一致，不需要重新试排。</td></tr>
+    <tr><td>B</td><td>同 A，但首页换成你指定的 3 个。</td><td>告诉我是哪 3 个即可。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>前提：Q1b 选 A 或 B（AI Blog Platform 继续在线）。如果 Q1b 选了 C，列表页里的 AI Blog Platform 就没有在线地址了，要么只放源码，要么拿掉。</div>
+
+  <h3>Q3b · 要不要项目详情页</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>不做详情页。卡片直接链到在线地址和源码。</td><td>v1 少 4 个页面。招聘方只能自己去点项目试用或读源码，看不到你对项目的说明。</td></tr>
+    <tr><td>B</td><td>做详情页。先把现有内容搬过来，配上中英两版；以后再逐步补充，比如解决什么问题、设计取舍、截图。</td><td>v1 多一个详情页模板，加上 4 份中英内容（现有内容很短，翻译量小）。旧链接 <code>/projects/home-task</code> 也有了对应的新页面（关系到 Q1a）。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：B。</b>求职时，项目说明是除了代码之外最能体现你判断力的地方，现在也已经有现成的底子。<br>前提：你愿意以后补充这些说明。如果你更想用文章来介绍项目（写在 Writing 里），选 A，卡片上可以再加一个「相关文章」链接。</div>
+</div>
+
+<!-- Q4 -->
+<div class="item">
+  <h3>Q4 · About、简历、Projects 这类内容在哪里修改</h3>
+  <span class="label">这是什么</span>
+  <p>文章是在后台编辑器里写的（D-034 等）。但 About 正文、简历 PDF、项目卡片和详情页这些内容不是文章，需要定它们存在哪、以后怎么改。这就是 todo 里「Projects 数据来源：手写配置 vs GitHub API」那一条的意思。</p>
+  <span class="label">今天会发生什么</span>
+  <p>先排除一个选项：<b>项目卡片的内容不能从 GitHub 自动获取。</b>GitHub 仓库只有一句英文描述，没有截图、没有中文、没有「在线地址」字段，填不满卡片。下面你的 4 个置顶仓库的描述，和卡片需要的内容对比一下：</p>
+  <ul>
+    <li>home-task：「Task manager for families and small teams, powered by AI voice interaction.」</li>
+    <li>vocab-master-v1：「This is a project for learning and review vocabularies」</li>
+  </ul>
+  <p>所以只剩两种：写在文件里，或者在后台编辑。</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>写在代码仓库的文件里（Markdown 或配置文件，中英各一份），截图和简历 PDF 也放在仓库里。</td><td>修改流程是：改文件 → 提交 → 自动部署，几分钟内生效（前提是部署设成推送后自动执行，这在实现阶段配置）。v1 不需要为这些内容写任何后台页面。</td></tr>
+    <tr><td>B</td><td>在后台加编辑页面：About 编辑、项目增删改、截图上传、简历上传。</td><td>不用碰代码就能改，但 v1 要多做 3–4 个后台页面，还要处理图片和文件上传。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>这些内容一年也改不了几次，为它们做后台页面不划算。<br>前提：改这些内容的人只有你，而且你习惯用 git。如果你希望在手机上也能随手改，选 B。</div>
+</div>
+
+<!-- Q5 -->
+<div class="item">
+  <h3>Q5 · 首页「On GitHub」区块的数据</h3>
+  <span class="label">这是什么</span>
+  <p>mock 首页最下面有一个「On GitHub」区块，分两栏。左栏「Pinned」列出 GitHub 主页上置顶的仓库（名称、描述、语言、星数），右栏「Recent commits」列出最近几次代码提交（多久以前、哪个仓库、提交说明）。D-002 定了要有这个区块，但没定数据从哪来。这就是 todo 里「GitHub 区块缓存与降级」那一条。</p>
+  <span class="label">今天会发生什么</span>
+  <ul>
+    <li>你的 kaili-lab 主页现在置顶了 4 个仓库：say-right、home-task、vocab-master-v1、blog-v1，星数分别是 0、1、0、0。</li>
+    <li>这 4 个仓库和 Projects 卡片基本是同一批项目，所以首页上同一批项目会出现两次。</li>
+    <li>技术事实（已核实）：GitHub 的普通接口拿不到「置顶了哪些仓库」，只能用另一种需要 GitHub 访问令牌的接口（GraphQL）。令牌要保存在服务器上。</li>
+    <li>〔推断，未验证〕「最近提交」只能拿到公开仓库的提交，公司项目和私有仓库的提交不会出现。如果你一两周没往公开仓库提交，这一栏显示的就是一两周前的记录。</li>
+  </ul>
+
+  <h3>Q5a · 最近提交</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>定时（比如每小时）从 GitHub 拉取，存进数据库；页面读存好的数据；GitHub 出错时继续显示上次的数据。</td><td>页面加载不依赖 GitHub，GitHub 出故障也不会让首页报错。v1 要做一个定时任务，加上存 GitHub 令牌。</td></tr>
+    <tr><td>B</td><td>不显示最近提交，右栏去掉或换成别的内容。</td><td>省掉定时任务和令牌。改了 D-002 定下的首页结构，需要追加一条决策。</td></tr>
+  </table>
+
+  <h3>Q5b · 置顶列表和星数</h3>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>跟随 GitHub 置顶：用 Q5a 同一个定时任务顺便取回来。你在 GitHub 上改置顶，网站自动跟着变。</td><td>如果 Q5a 选 A，额外工作很少。如果 Q5a 选 B，就要专门为它保留令牌和定时任务。</td></tr>
+    <tr><td>B</td><td>手写在文件里（同 Q4-A）。</td><td>不需要令牌。GitHub 上改了置顶，网站不会跟着变，要手动改文件。</td></tr>
+  </table>
+  <p>另外：<b>要不要显示星数？</b>现在是 0–1 颗，显示出来是「★ 0」。我建议不显示。</p>
+
+  <div class="lean"><b>我的倾向：Q5a 选 A，Q5b 选 A，不显示星数。</b>持续有公开提交本身就是「在做事」的证据，值得做成实时数据。<br>前提：你接下来会经常往公开仓库提交代码。如果你的主要工作在私有仓库，最近提交这一栏会长期显示旧记录，反而像不活跃，那就 Q5a 选 B、Q5b 选 B。另外需要 F2 的答案，才知道从哪个账号取数据。</div>
+
+  <details><summary>依据与出处</summary>
+    <ul>
+      <li>置顶仓库和星数：github.com/kaili-lab 主页，2026-10-09 访问</li>
+      <li>REST 接口不提供置顶仓库，只有 GraphQL 的 pinnedItems 可以读：<a href="https://github.com/orgs/community/discussions/24696">GitHub Community #24696</a>、<a href="https://gist.github.com/DuvanVilladiego/16ec87c5c3fb8363e84afe78fb3cae8a">示例查询</a></li>
+    </ul>
+  </details>
+</div>
+
+<!-- Q6 -->
+<div class="item">
+  <h3>Q6 · 文章分类</h3>
+  <span class="label">这是什么</span>
+  <p>每篇文章属于<b>一个</b>分类（D-016，单选），另外可以打<b>多个</b>标签。读者在文章列表里可以按分类筛选，网址形如 <code>/zh/writing?category=engineering</code>（D-037）。todo 里「分类候选集合」问的就是：有哪几个分类，每个分类叫什么（中文名、英文名，以及网址里用的英文短名，比如 <code>engineering</code>）。</p>
+  <span class="label">今天会发生什么</span>
+  <p>可以简化的一点：D-037 已经定了后台有分类管理页面，<b>分类可以随时新增、改名</b>。所以这个问题不会挡住开工，只是第一篇文章发布前必须至少有一个分类。唯一的代价是：改分类的英文短名会让别人分享过的筛选链接失效（列表页仍能打开，只是筛选条件不再生效）〔推断，具体表现取决于实现〕。</p>
+  <p>参考：mock 里的示例标题大致分成工程实践、AI 辅助开发、职业经历几类；旧博客的分类有 Personal、AI Engineering、Database 等。</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>现在定一组初始分类，例如：工程 Engineering / AI / 职业 Career / 随笔 Notes。</td><td>开工时可以预先建好。但在没写文章之前定的分类，写起来后可能要调整。</td></tr>
+    <tr><td>B</td><td>现在不定，写第一篇文章时在后台建，边写边加。</td><td>分类跟着真实内容长出来。第一篇文章发布前要先建一个分类。</td></tr>
+  </table>
+  <p>附带一个小问题：<b>分类是否必填？</b>必填的话，按分类筛选能覆盖所有文章；不必填的话，会有一些文章不属于任何分类，筛选时找不到它们。我建议必填。</p>
+  <div class="lean"><b>我的倾向：B，分类必填。</b>前提：后台的分类管理页面在 v1 里（D-037 已定，是）。如果你已经清楚自己要写哪几类，直接选 A 并列出来。</div>
+</div>
+
+<!-- Q7 -->
+<div class="item">
+  <h3>Q7 · v1 写文章时，能不能把 Idea 挂成参考资料</h3>
+  <span class="label">这是什么</span>
+  <p>Idea 是后台里的私人闪念记录（v1 就有）。之前已经定了（D-067 / D-077）：文章编辑器旁边有一个「参考资料」列表，可以把 Resource 和 Idea 挂上去，写作时展开查看（只读）；也可以从某条 Idea 直接「用它开始写一篇文章」，新草稿会自动挂上这条 Idea。</p>
+  <span class="label">今天会发生什么</span>
+  <p>版本切分后，Resource 去了 v1.1，Idea 留在 v1，但文档没写<b>v1 的编辑器里有没有这个参考资料列表</b>。如果没有，v1 的 Idea 就只能记录和查看，和写文章没有任何连接。可是 Idea 存在的意义就是作为写作的输入（requirements §0 的输入到输出循环）。</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>v1 做：编辑器有参考资料列表（v1 里只能挂 Idea），Idea 页面有「用它写文章」入口。</td><td>v1 就能跑通「记 Idea → 写成文章」的完整流程。v1.1 加 Resource 时，只是往同一个列表里多加一种类型。</td></tr>
+    <tr><td>B</td><td>v1 不做，v1 的 Idea 只记录和查看。</td><td>v1 少做一个列表和一个入口；写文章时要自己另开一个页面看 Idea。这部分工作到 v1.1 还是要做，只是推迟了。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>工作量不大，而且这正是你做这个站的第一个动机（把想法写成文章）。<br>前提：v1 上线后你会用 Idea 来积累写作素材。如果你觉得 v1 期间基本不会用 Idea，选 B，或者干脆把 Idea 整体挪到 v1.1。</div>
+</div>
+
+<!-- Q8 -->
+<div class="item">
+  <h3>Q8 · 置顶文章显示在哪里</h3>
+  <span class="label">这是什么</span>
+  <p>文章有一个「置顶」开关（D-005「标签、分类、置顶按常规做」）。D-050 又说文章列表「按发布时间倒序，置顶不新增复杂排序规则」。但两处都没说<b>置顶的文章到底排在哪</b>。</p>
+  <span class="label">今天会发生什么</span>
+  <p>目前没有规则，开发时只能猜。可能出问题的地方是首页：首页只显示最近 5 篇，一篇很久以前的置顶文章要不要挤进这 5 篇？</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>所有文章列表（首页最近 5 篇、Writing 列表、筛选结果）里，置顶文章都排最前，其余按发布时间倒序。</td><td>规则只有一句，到处一样。置顶文章会长期占住首页的一个位置。</td></tr>
+    <tr><td>B</td><td>只在 Writing 列表里排最前；首页仍然严格按时间显示最近 5 篇。</td><td>首页总是「最新」，置顶只在列表页起作用。两处规则不同，要分别实现。</td></tr>
+    <tr><td>C</td><td>v1 不做置顶。</td><td>省掉一个字段。和 D-005 冲突，需要追加一条决策。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：A。</b>置顶本来就是「我想让人先看到这篇」，首页是最该体现这一点的地方。<br>前提：你会置顶的文章很少（1–2 篇）。如果你希望首页永远只显示最新内容，选 B。</div>
+</div>
+
+<!-- Q9 -->
+<div class="item">
+  <h3>Q9 · 没用上的文章图片，v1 要不要自动清理</h3>
+  <span class="label">这是什么</span>
+  <p>写文章时，粘贴图片会立刻上传到云存储（R2）。如果之后你把图片从正文里删了，或者整篇草稿放弃了，图片文件仍留在存储里。D-047 定了这类没被任何文章用到的图片保留 7 天后自动删除，删除前要重新检查一遍确实没人用。</p>
+  <span class="label">今天会发生什么</span>
+  <p>有两件事要分开看：</p>
+  <ul>
+    <li><b>记录每张图片被哪些文章版本用到</b>：v1 必须做。因为「未登录的访客只能看到已发布文章里的图片」（D-048）就是靠这份记录来判断的。</li>
+    <li><b>定时删除没用上的图片</b>：可以推迟。它需要一个定时任务。而且删除是唯一不可撤回的操作：删错了，已发布文章里的图片就找不回来了。</li>
+  </ul>
+  <p>存储成本：R2 每月免费 10 GB。〔推断：按每张图 0.5–2 MB 估算，个人博客几年内都用不完〕</p>
+  <span class="label">你要定的</span>
+  <table>
+    <tr><th>选项</th><th>做什么</th><th>后果</th></tr>
+    <tr><td>A</td><td>v1 就做自动清理，按 D-047 的全部规则和验收要求实现。</td><td>存储里不会堆积废图片。v1 多一个定时任务，以及一套必须仔细测试的删除逻辑。</td></tr>
+    <tr><td>B</td><td>v1 只做引用记录，不删除任何图片；清理任务等以后再做。</td><td>废图片会慢慢堆积，但在免费额度内没有费用，也没有误删风险。以后加清理时，引用记录已经齐全，可以直接用。</td></tr>
+  </table>
+  <div class="lean"><b>我的倾向：B。</b>前提：v1 期间文章和图片数量不大。如果你很在意存储里不留垃圾，选 A。</div>
+</div>
+
+<h2>回答之后我会做什么</h2>
+<ul>
+  <li>每个裁决在 <code>decisions.md</code> 里追加一条新决策（从 D-098 开始）。替代 D-097 的那条会标明 supersedes D-097。</li>
+  <li>同步更新 <code>requirements.md</code> 和 <code>todo.md</code> 的对应条目，去掉「待重新确认」标记。</li>
+  <li>如果 F1 发现第 6 轮还有别的条目没经你确认，逐条拿出来重新讨论。</li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,99 @@
+/* 文章详情页与长文排版（design.md「长文排版」）。中英文文章页共用；后台编辑器的预览区也用 .prose。 */
+
+/* ===== 页面结构：页头横跨两栏，正文左栏，目录右栏 ===== */
+.article { display: grid; grid-template-columns: minmax(0, 41rem) 13rem; justify-content: space-between; column-gap: 64px; }
+.a-head { grid-column: 1 / -1; padding: 56px 0 30px; border-bottom: 2px solid var(--ink); }
+.a-head .back { font-size: .86rem; color: var(--mute); }
+.a-head .back:hover { color: var(--cinnabar); }
+.a-head .meta-line { margin-top: 26px; }
+.a-head h1 { margin: 12px 0 0; max-width: 41rem; font-family: var(--title); font-weight: 900; font-size: 2.5rem; line-height: 1.3; }
+.a-head .summary { margin: 16px 0 0; max-width: 41rem; font-size: 1.05rem; line-height: 1.75; color: var(--ink-2); }
+
+/* 目录：桌面端右栏吸顶；当前小节为墨色 + 朱砂竖线（只变色，无动效） */
+.toc { grid-column: 2; grid-row: 2 / span 2; align-self: start; position: sticky; top: 32px; margin-top: 40px; }
+.toc summary { display: none; }
+.toc .label { display: block; margin-bottom: 10px; }
+.toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+.toc a { display: block; padding: 5px 0 5px 14px; margin-left: -1px; border-left: 2px solid transparent; font-size: .86rem; line-height: 1.5; color: var(--mute); }
+.toc .lv3 a { padding-left: 28px; font-size: .82rem; }
+.toc a:hover { color: var(--ink); }
+.toc a.active { color: var(--ink); border-left-color: var(--cinnabar); }
+
+/* ===== 长文排版 ===== */
+.prose { grid-column: 1; padding-top: 40px; font-family: var(--body); font-size: 1.0625rem; line-height: 1.85; color: var(--ink); overflow-wrap: break-word; }
+.prose > :first-child { margin-top: 0; }
+.prose p { margin: 0 0 1.15em; }
+.prose h2 { margin: 2.2em 0 .8em; font-family: var(--title); font-weight: 900; font-size: 1.42rem; line-height: 1.4; scroll-margin-top: 24px; }
+.prose h3 { margin: 1.8em 0 .6em; font-family: var(--title); font-weight: 600; font-size: 1.15rem; line-height: 1.5; scroll-margin-top: 24px; }
+.prose strong { font-weight: 600; }
+/* 正文里的链接是例外：黛蓝 + 下划线，不只靠颜色区分（WCAG 1.4.1） */
+.prose a { color: var(--indigo); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .22em; text-decoration-color: color-mix(in srgb, var(--indigo) 45%, transparent); }
+.prose a:hover { color: var(--cinnabar); text-decoration-color: currentColor; }
+.prose ul, .prose ol { margin: 0 0 1.15em; padding-left: 1.4em; }
+.prose li { margin: .3em 0; }
+.prose li::marker { color: var(--mute); }
+.prose ol li::marker { font-family: var(--num); font-size: .88em; }
+/* 引用：别人的话，宋体次墨 + 左侧 3px 线；不用文楷（文楷只给「我说的话」），中文不用斜体 */
+.prose blockquote { margin: 1.6em 0; padding: 0 0 0 1.1em; border-left: 3px solid var(--line); color: var(--ink-2); }
+.prose blockquote p:last-child { margin-bottom: 0; }
+.prose hr { border: 0; height: 1px; width: 96px; margin: 2.6em auto; background: var(--line); }
+.prose code { font-family: var(--num); font-size: .86em; background: var(--paper-2); border-radius: 3px; padding: .1em .35em; }
+/* 代码块：深宣纸底、1px 线框、无纸纹；只能在块内横向滚动，页面不出现横向滚动条 */
+.prose pre { position: relative; margin: 1.6em 0; padding: 16px 18px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 4px; overflow-x: auto; font-family: var(--num); font-size: .84rem; line-height: 1.65; }
+.prose pre code { background: none; padding: 0; font-size: inherit; }
+.prose pre[data-lang]::before { content: attr(data-lang); position: absolute; top: 6px; right: 10px; font-family: var(--ui); font-size: .68rem; letter-spacing: .08em; color: var(--mute); }
+/* 语法高亮只用已有颜色：关键字朱砂、字符串和数字黛蓝、注释赭灰，其余是墨；不加新颜色，注释不用斜体 */
+.prose pre .k { color: var(--cinnabar); }
+.prose pre .s, .prose pre .n { color: var(--indigo); }
+.prose pre .c { color: var(--mute); }
+.prose figure { margin: 1.8em 0; }
+.prose figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 3px; }
+.prose figcaption { margin-top: 8px; font-family: var(--ui); font-size: .84rem; line-height: 1.6; color: var(--mute); }
+.prose .table { margin: 1.6em 0; overflow-x: auto; }
+.prose table { width: 100%; border-collapse: collapse; font-family: var(--ui); font-size: .92rem; line-height: 1.6; }
+.prose th { text-align: left; font-weight: 600; padding: 8px 16px 8px 0; border-bottom: 1px solid var(--ink); white-space: nowrap; }
+.prose td { padding: 8px 16px 8px 0; border-bottom: 1px solid var(--line); }
+.prose td.num { font-family: var(--num); font-size: .86rem; white-space: nowrap; }
+
+/* ===== 文末：标签 + 上一篇 / 下一篇 ===== */
+.a-end { grid-column: 1; margin-top: 40px; }
+.tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 22px; }
+.tags .label { margin-right: 4px; }
+.tags a.pill:hover { color: var(--cinnabar); border-color: var(--cinnabar); }
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.pager a { display: block; }
+.pager .next { grid-column: 2; text-align: right; }
+.pager small { display: block; font-size: .8rem; color: var(--mute); }
+.pager b { display: block; margin-top: 4px; font-family: var(--title); font-weight: 600; font-size: 1rem; line-height: 1.5; }
+.pager a:hover b { color: var(--cinnabar); }
+
+/* ===== 英文 ===== */
+html[lang="en"] .a-head h1 { font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+html[lang="en"] .prose { font-size: 1.125rem; line-height: 1.7; }
+html[lang="en"] .prose h2 { font-weight: 800; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 960px) {
+  .article { grid-template-columns: minmax(0, 1fr); }
+  .a-head { padding-top: 40px; }
+  /* 目录移到页头下方，默认折叠 */
+  .toc { grid-column: 1; grid-row: auto; position: static; margin-top: 24px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper-2); padding: 10px 16px; }
+  .toc summary { display: flex; justify-content: space-between; cursor: pointer; list-style: none; font-size: .86rem; color: var(--ink); }
+  .toc summary::-webkit-details-marker { display: none; }
+  .toc summary::after { content: attr(data-open); color: var(--mute); }
+  .toc[open] summary::after { content: attr(data-close); }
+  .toc .label { display: none; }
+  .toc ol { margin-top: 8px; }
+  .prose { padding-top: 28px; }
+}
+@media (max-width: 640px) {
+  .a-head { padding: 28px 0 22px; }
+  .a-head .meta-line { margin-top: 18px; }
+  .a-head h1 { font-size: 1.75rem; line-height: 1.35; }
+  html[lang="en"] .a-head h1 { font-size: 1.85rem; }
+  .a-head .summary { font-size: 1rem; }
+  .prose h2 { font-size: 1.28rem; }
+  .prose pre { padding: 14px; font-size: .8rem; }
+  .pager { grid-template-columns: 1fr; gap: 16px; }
+  .pager .next { grid-column: 1; text-align: left; }
+}

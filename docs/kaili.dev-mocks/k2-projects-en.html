@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Things I've made — Kai Li</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="k2-theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,800;1,8..60,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="k2.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="k2-paper-en.html"><span class="seal">KL</span>Kai Li</a>
+  <!-- Projects is not in the top bar (D-113); the way in is "All →" on the home page -->
+  <nav><a href="#">Writing</a><a href="k2-books-en.html">Bookshelf</a></nav>
+  <span class="lang"><a href="k2-projects.html">中</a> / <b>EN</b></span>
+  <span class="theme" role="group" aria-label="Theme"><button data-mode="light">Light</button> / <button data-mode="dark">Dark</button> / <button data-mode="system">Auto</button></span>
+</div></header>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1>Things I've made</h1>
+    <!-- Placeholder: Kai Li's own sentence -->
+    <p>Small tools I first built for myself or my family. Each one is still live, and the code is public.</p>
+  </div>
+  <ul class="plain projects" id="projects"></ul>
+</main>
+
+<footer><div class="wrap"><div class="inner"><a href="#">Email</a><a href="#">GitHub</a><a href="#">X</a><a href="#">LinkedIn</a><span>Set in Source Serif, Inter &amp; Cormorant</span></div></div></footer>
+
+<script src="personal-data-en.js"></script>
+<script>
+  document.getElementById("projects").innerHTML = made.map(p => `
+    <li>
+      <div class="thumb"><img src="img/${p.img}.png" alt="${p.name} home page"></div>
+      <div>
+        <div class="name"><b>${p.name}</b><em class="pill ${p.status === "Maintained" ? "on" : ""}">${p.status}</em></div>
+        <p class="why">${p.why}</p>
+        <p class="intro">${p.intro}</p>
+        <div class="links"><a class="ext" href="#">${p.url} ↗</a><a class="ext" href="#">${p.repo} ↗</a></div>
+      </div>
+    </li>`).join("");
+</script>
+</body>
+</html>

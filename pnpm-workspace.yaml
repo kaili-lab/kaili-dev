@@ -1,0 +1,7 @@
+allowBuilds:
+  esbuild: true
+  lightningcss: true
+  sharp: true
+  workerd: true
+minimumReleaseAgeExclude:
+  - satori@0.55.1

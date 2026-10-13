@@ -1,0 +1,58 @@
+@import 'tailwindcss' source('./');
+@import './styles/tokens.css';
+@import './styles/k2.css' layer(components);
+@import './styles/site-pages.css' layer(components);
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  min-width: 0;
+  margin: 0;
+  background: var(--paper) var(--grain);
+  color: var(--ink);
+  font-family: var(--ui);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+@layer components {
+  .entry-page {
+    width: min(42rem, calc(100% - 2rem));
+    margin: 4rem auto;
+  }
+}
+
+[data-theme-switcher] button {
+  border: 0;
+  padding: 0;
+  color: var(--mute);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+[data-theme-switcher] button[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+[data-theme-switcher] button:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .public-site {
+    min-height: 100vh;
+  }
+}
