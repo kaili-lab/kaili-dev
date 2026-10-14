@@ -129,3 +129,65 @@ export function sortIdeas<
       left.id.localeCompare(right.id),
   )
 }
+
+// ---- list pages (D-163) ------------------------------------------------------
+
+/** Rows per page on every admin list. */
+export const PAGE_SIZE = 15
+
+export type ArticleStatusFilter =
+  'all' | 'pending' | 'published' | 'unpublished'
+export const articleStatusFilters: readonly ArticleStatusFilter[] = [
+  'all',
+  'pending',
+  'published',
+  'unpublished',
+]
+
+/** A page number from the address: anything but a positive integer is 1. */
+export function parsePage(value: unknown): number {
+  const page = typeof value === 'number' ? value : Number(value)
+  return Number.isInteger(page) && page >= 1 ? page : 1
+}
+
+/** One page of `items`; a page past the end shows the last page. */
+export function paginate<T>(
+  items: readonly T[],
+  requested: number,
+  size = PAGE_SIZE,
+): { items: T[]; page: number; pages: number; total: number } {
+  const pages = Math.max(1, Math.ceil(items.length / size))
+  const page = Math.min(parsePage(requested), pages)
+  return {
+    items: items.slice((page - 1) * size, page * size),
+    page,
+    pages,
+    total: items.length,
+  }
+}
+
+/** Case-insensitive substring match after trimming; an empty query matches. */
+export function matchesQuery(text: string, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  return needle === '' || text.toLowerCase().includes(needle)
+}
+
+const live = (state: VersionState) =>
+  state === 'published' || state === 'modified'
+
+/** D-163 ②: the article list's title search, status and category filters. */
+export function filterAdminRows<T extends AdminRow>(
+  rows: readonly T[],
+  filter: { q: string; status: ArticleStatusFilter; category: string },
+): T[] {
+  return rows.filter((row) => {
+    if (!matchesQuery(row.title, filter.q)) return false
+    if (filter.category !== '' && row.category !== filter.category) return false
+    const states = [row.zh, row.en]
+    if (filter.status === 'pending')
+      return states.some((state) => state === 'draft' || state === 'modified')
+    if (filter.status === 'published') return states.some(live)
+    if (filter.status === 'unpublished') return !states.some(live)
+    return true
+  })
+}

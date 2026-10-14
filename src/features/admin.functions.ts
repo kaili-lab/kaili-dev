@@ -2,8 +2,14 @@ import { createServerFn } from '@tanstack/react-start'
 
 import {
   adminRow,
+  articleStatusFilters,
+  filterAdminRows,
   isBlank,
+  matchesQuery,
+  paginate,
+  parsePage,
   sortAdminRows,
+  type ArticleStatusFilter,
   sortIdeas,
   taxonomyUsage,
   validateTaxonomyEntry,
@@ -67,6 +73,23 @@ const kind = (value: unknown): TaxonomyKind => {
   return value
 }
 
+/** List-page query from the address (D-163); bad values fall back quietly. */
+function listQuery(input: unknown) {
+  const value = typeof input === 'object' && input !== null ? input : {}
+  const field = (name: string) => {
+    const item = (value as Record<string, unknown>)[name]
+    return typeof item === 'string' ? item : ''
+  }
+  const status = field('status') as ArticleStatusFilter
+  return {
+    page: parsePage((value as Record<string, unknown>).page),
+    q: field('q'),
+    status: articleStatusFilters.includes(status) ? status : 'all',
+    category: field('category'),
+    tab: field('tab') === 'tags' ? ('tags' as const) : ('categories' as const),
+  }
+}
+
 type EditRequest = { id: string | null; input: EditInput; ideaIds: string[] }
 
 function editRequest(input: unknown): EditRequest {
@@ -128,26 +151,36 @@ const takenSlugs = (id: string | null) =>
 
 // ---- articles ---------------------------------------------------------------
 
-export const listAdminArticles = createServerFn({ method: 'GET' }).handler(
-  () => {
+export const listAdminArticles = createServerFn({ method: 'GET' })
+  .validator(listQuery)
+  .handler(({ data }) => {
     requireAdmin()
     const categories = listTaxonomy('categories')
     const records = listStoredArticles()
     const last = new Map(
       records.map((record) => [record.id, record.lastLanguage]),
     )
-    return sortAdminRows(
-      records.map((record) =>
-        adminRow(record.id, record.article, record.savedAt),
+    const rows = filterAdminRows(
+      sortAdminRows(
+        records.map((record) =>
+          adminRow(record.id, record.article, record.savedAt),
+        ),
       ),
-    ).map((row) => ({
-      ...row,
-      categoryName: label(categories, row.category),
-      // Open the language edited last (admin-design-note §2); Chinese if none.
-      lastLanguage: last.get(row.id) ?? ('zh' as const),
-    }))
-  },
-)
+      data,
+    )
+    const page = paginate(rows, data.page)
+    return {
+      ...page,
+      items: page.items.map((row) => ({
+        ...row,
+        slug: records.find((record) => record.id === row.id)?.article.slug,
+        categoryName: label(categories, row.category),
+        // Open the language edited last (admin-design-note §2); Chinese if none.
+        lastLanguage: last.get(row.id) ?? ('zh' as const),
+      })),
+      categories,
+    }
+  })
 
 export const loadAdminArticle = createServerFn({ method: 'GET' })
   .validator((input: unknown) => ({ id: text(object(input).id, 'id') }))
@@ -224,16 +257,23 @@ export const publishAdminArticle = createServerFn({ method: 'POST' })
 
 // ---- categories and tags ----------------------------------------------------
 
-export const loadTaxonomy = createServerFn({ method: 'GET' }).handler(() => {
-  requireAdmin()
-  const articles = listStoredArticles().map((record) => record.article)
-  const rows = (which: TaxonomyKind) =>
-    listTaxonomy(which).map((entry) => ({
+export const loadTaxonomy = createServerFn({ method: 'GET' })
+  .validator(listQuery)
+  .handler(({ data }) => {
+    requireAdmin()
+    const articles = listStoredArticles().map((record) => record.article)
+    const rows = listTaxonomy(data.tab).map((entry) => ({
       ...entry,
-      ...taxonomyUsage(articles, which, entry.slug),
+      ...taxonomyUsage(articles, data.tab, entry.slug),
     }))
-  return { categories: rows('categories'), tags: rows('tags') }
-})
+    return {
+      ...paginate(rows, data.page),
+      counts: {
+        categories: listTaxonomy('categories').length,
+        tags: listTaxonomy('tags').length,
+      },
+    }
+  })
 
 export const saveTaxonomyEntry = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
@@ -306,16 +346,49 @@ export const removeTaxonomyEntry = createServerFn({ method: 'POST' })
 
 // ---- Ideas ----------------------------------------------------------------
 
-export const listIdeas = createServerFn({ method: 'GET' }).handler(() => {
-  requireAdmin()
-  return sortIdeas(listStoredIdeas())
-})
+/** Articles that list this Idea as a reference (D-163 ② / D-164 ③). */
+function ideaArticles(
+  records: ReturnType<typeof listStoredArticles>,
+  id: string,
+) {
+  return records
+    .filter((record) => record.ideaIds.includes(id))
+    .map((record) => ({
+      id: record.id,
+      title: adminRow(record.id, record.article, record.savedAt).title,
+      lastLanguage: record.lastLanguage ?? ('zh' as const),
+    }))
+}
+
+export const listIdeas = createServerFn({ method: 'GET' })
+  .validator(listQuery)
+  .handler(({ data }) => {
+    requireAdmin()
+    const records = listStoredArticles()
+    const all = sortIdeas(listStoredIdeas())
+    const page = paginate(
+      all.filter((idea) => matchesQuery(idea.text, data.q)),
+      data.page,
+    )
+    return {
+      ...page,
+      items: page.items.map((idea) => ({
+        ...idea,
+        articles: ideaArticles(records, idea.id),
+      })),
+      // Every Idea exists, regardless of the search (for the page heading).
+      all: all.length,
+    }
+  })
 
 export const loadIdea = createServerFn({ method: 'GET' })
   .validator((input: unknown) => ({ id: text(object(input).id, 'id') }))
   .handler(({ data }) => {
     requireAdmin()
-    return getStoredIdea(data.id) ?? null
+    const idea = getStoredIdea(data.id)
+    return idea
+      ? { ...idea, articles: ideaArticles(listStoredArticles(), idea.id) }
+      : null
   })
 
 export const saveIdea = createServerFn({ method: 'POST' })

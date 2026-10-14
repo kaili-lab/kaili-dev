@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  PAGE_SIZE,
   adminRow,
+  filterAdminRows,
   isBlank,
+  matchesQuery,
+  paginate,
+  parsePage,
   sortAdminRows,
   sortIdeas,
   taxonomyUsage,
@@ -207,5 +212,81 @@ describe('D-048 image references', () => {
       'inline `![x](/img/in-code.png)` text',
     ].join('\n')
     expect(referencedImages(body)).toEqual([])
+  })
+})
+
+describe('D-163 list pages', () => {
+  const numbers = Array.from({ length: 32 }, (_, index) => index + 1)
+
+  it('shows 15 rows per page', () => {
+    expect(PAGE_SIZE).toBe(15)
+    expect(paginate(numbers, 1)).toEqual({
+      items: numbers.slice(0, 15),
+      page: 1,
+      pages: 3,
+      total: 32,
+    })
+    expect(paginate(numbers, 3).items).toEqual([31, 32])
+  })
+
+  it.each([
+    [undefined, 1],
+    ['', 1],
+    ['0', 1],
+    ['-2', 1],
+    ['1.5', 1],
+    ['abc', 1],
+    ['2', 2],
+    [4, 4],
+  ])('reads page %j as %i', (value, page) => {
+    expect(parsePage(value)).toBe(page)
+  })
+
+  it('clamps a page past the end to the last page', () => {
+    expect(paginate(numbers, 99)).toMatchObject({ page: 3, items: [31, 32] })
+  })
+
+  it('an empty list still has one page', () => {
+    expect(paginate([], 5)).toEqual({ items: [], page: 1, pages: 1, total: 0 })
+  })
+
+  it('matches queries ignoring case and outer spaces', () => {
+    expect(matchesQuery('Hello World', '  world ')).toBe(true)
+    expect(matchesQuery('Hello', '')).toBe(true)
+    expect(matchesQuery('Hello', 'bye')).toBe(false)
+  })
+
+  const row = (id, title, zh, en, category = 'eng') => ({
+    id,
+    title,
+    zh,
+    en,
+    category,
+    savedAt: '2026-01-01T00:00:00.000Z',
+  })
+  const rows = [
+    row('a', 'Alpha', 'draft', 'missing'),
+    row('b', 'Beta', 'published', 'missing', 'read'),
+    row('c', 'Gamma', 'modified', 'published'),
+    row('d', 'Delta', 'missing', 'missing', 'read'),
+  ]
+  const ids = (filter) =>
+    filterAdminRows(rows, {
+      q: '',
+      status: 'all',
+      category: '',
+      ...filter,
+    }).map((item) => item.id)
+
+  it.each([
+    [{}, ['a', 'b', 'c', 'd']],
+    [{ status: 'pending' }, ['a', 'c']],
+    [{ status: 'published' }, ['b', 'c']],
+    [{ status: 'unpublished' }, ['a', 'd']],
+    [{ category: 'read' }, ['b', 'd']],
+    [{ q: 'ta' }, ['b', 'd']],
+    [{ q: 'ta', status: 'published', category: 'read' }, ['b']],
+  ])('filters %j', (filter, expected) => {
+    expect(ids(filter)).toEqual(expected)
   })
 })

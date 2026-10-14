@@ -55,8 +55,8 @@ export function AdminShell({
     name === section ? 'page' : undefined
   return (
     <div className="ad-root" lang="zh-CN" data-hydrated={hydrated || undefined}>
-      <header className="ad-nav">
-        <strong>kaili.dev 后台</strong>
+      <aside className="ad-nav">
+        <strong className="ad-brand">kaili.dev 后台</strong>
         <nav aria-label="后台">
           <Link to="/admin/posts" aria-current={current('posts')}>
             文章
@@ -64,11 +64,7 @@ export function AdminShell({
           <Link to="/admin/ideas" aria-current={current('ideas')}>
             Idea
           </Link>
-          <Link
-            to="/admin/taxonomy"
-            search={{ tab: 'categories' }}
-            aria-current={current('taxonomy')}
-          >
+          <Link to="/admin/taxonomy" aria-current={current('taxonomy')}>
             分类与标签
           </Link>
         </nav>
@@ -78,8 +74,8 @@ export function AdminShell({
           </a>
           <span>{user}（开发环境假登录）</span>
         </span>
-      </header>
-      {children}
+      </aside>
+      <main className="ad-main">{children}</main>
     </div>
   )
 }

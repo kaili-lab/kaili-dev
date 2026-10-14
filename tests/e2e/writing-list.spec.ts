@@ -17,7 +17,49 @@ async function noOverflow(page: Page) {
   ).toBe(true)
 }
 
-// Auto-retrying locator: links trigger full navigations.
+async function markClientDocument(page: Page) {
+  // The first visit swaps fonts once (D-152); measure after that settles.
+  await page.waitForFunction(
+    () =>
+      (document.getElementById('k2-fonts') as HTMLLinkElement | null)?.media ===
+        'all' && document.fonts.status === 'loaded',
+  )
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
+  await page.evaluate(() => {
+    const state = window as Window & {
+      __kailiClientMarker?: string
+      __kailiFontLink?: Element | null
+    }
+    state.__kailiClientMarker = 'same-document'
+    state.__kailiFontLink = document.getElementById('k2-fonts')
+  })
+}
+
+async function clientDocumentState(page: Page) {
+  return page.evaluate(() => {
+    const state = window as Window & {
+      __kailiClientMarker?: string
+      __kailiFontLink?: Element | null
+    }
+    const rect = (selector: string) => {
+      const element = document.querySelector(selector)
+      if (!element) return null
+      const box = element.getBoundingClientRect()
+      return [box.x, box.y, box.width, box.height].map(
+        (value) => Math.round(value * 10) / 10,
+      )
+    }
+    return {
+      marker: state.__kailiClientMarker,
+      sameFontLink:
+        state.__kailiFontLink === document.getElementById('k2-fonts'),
+      brand: rect('.k2-brand'),
+      filters: rect('.site-writing-filters'),
+    }
+  })
+}
+
+// Auto-retrying locator: the list updates after each navigation.
 function listTitles(page: Page) {
   return page.locator('.site-writing-list').getByRole('heading')
 }
@@ -76,6 +118,116 @@ test.describe('T4.2 writing list', () => {
     await expect(
       page.locator('.site-writing-filters a[aria-current="page"]'),
     ).toHaveText(['全部', 'TypeScript'])
+  })
+
+  test('filter, navigation and article links stay in the same document', async ({
+    page,
+  }) => {
+    await page.goto('/zh/writing')
+    await markClientDocument(page)
+    const before = await clientDocumentState(page)
+
+    await page.getByRole('link', { name: '工程', exact: true }).click()
+    await expect(page).toHaveURL(/\/zh\/writing\?category=engineering$/)
+    await expect(listTitles(page)).toHaveText([
+      '把边界写清楚',
+      '只有中文的文章',
+    ])
+    expect(await clientDocumentState(page)).toEqual(before)
+
+    // Links follow the address within a frame; wait for that, then click.
+    await expect(
+      page.getByRole('link', { name: 'TypeScript', exact: true }),
+    ).toHaveAttribute('href', '/zh/writing?category=engineering&tag=typescript')
+    await page.getByRole('link', { name: 'TypeScript', exact: true }).click()
+    await expect(page).toHaveURL(
+      /\/zh\/writing\?category=engineering&tag=typescript$/,
+    )
+    expect(await clientDocumentState(page)).toEqual(before)
+
+    await page
+      .locator('.site-writing-filter')
+      .first()
+      .getByRole('link', { name: '全部' })
+      .click()
+    await expect(page).toHaveURL(/\/zh\/writing\?tag=typescript$/)
+    expect(await clientDocumentState(page)).toEqual(before)
+
+    await page.locator('.k2-post').first().getByRole('link').click()
+    await expect(page).toHaveURL(/\/zh\/writing\/boundary-example$/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      '把边界写清楚',
+    )
+    const articleState = await clientDocumentState(page)
+    expect(articleState.marker).toBe('same-document')
+    expect(articleState.sameFontLink).toBe(true)
+    expect(articleState.brand).toEqual(before.brand)
+    await page.getByRole('link', { name: '书架', exact: true }).click()
+    await expect(page).toHaveURL(/\/zh\/bookshelf$/)
+    const bookshelfState = await clientDocumentState(page)
+    expect(bookshelfState.marker).toBe('same-document')
+    expect(bookshelfState.sameFontLink).toBe(true)
+  })
+
+  test('a second filter chosen before the list loads keeps the first (D-165)', async ({
+    page,
+  }) => {
+    await page.goto('/zh/writing')
+    // Hold every list request, so the second click lands while loading.
+    await page.route(
+      (url) => url.pathname.startsWith('/_serverFn/'),
+      async (route) => {
+        await new Promise((done) => setTimeout(done, 1500))
+        await route.continue()
+      },
+    )
+    await page.getByRole('link', { name: '工程', exact: true }).click()
+    await expect(page).toHaveURL(/category=engineering/)
+    // The mark and the other links follow the address at once, well before
+    // the held list request (1.5s) returns.
+    await expect(
+      page.getByRole('link', { name: '工程', exact: true }),
+    ).toHaveAttribute('aria-current', 'page', { timeout: 1000 })
+    await expect(
+      page.getByRole('link', { name: 'TypeScript', exact: true }),
+    ).toHaveAttribute(
+      'href',
+      '/zh/writing?category=engineering&tag=typescript',
+      {
+        timeout: 1000,
+      },
+    )
+    await page.getByRole('link', { name: 'TypeScript', exact: true }).click()
+    await expect(page).toHaveURL(
+      /\/zh\/writing\?category=engineering&tag=typescript$/,
+    )
+    await expect(listTitles(page)).toHaveText([
+      '把边界写清楚',
+      '只有中文的文章',
+    ])
+  })
+
+  test('public page links keep hrefs without JavaScript', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    try {
+      await page.goto('/zh')
+      const navigation = page.getByRole('navigation', { name: '主导航' })
+      await expect(
+        navigation.getByRole('link', { name: '写作' }),
+      ).toHaveAttribute('href', '/zh/writing')
+      await navigation.getByRole('link', { name: '写作' }).click()
+      await expect(page).toHaveURL(/\/zh\/writing$/)
+      await expect(
+        page.getByRole('link', { name: '工程', exact: true }),
+      ).toHaveAttribute('href', '/zh/writing?category=engineering')
+      await page.getByRole('link', { name: '工程', exact: true }).click()
+      await expect(page).toHaveURL(/\/zh\/writing\?category=engineering$/)
+    } finally {
+      await context.close()
+    }
   })
 
   // [from, to, current category, current tag]; all fixture zh posts are
@@ -175,11 +327,11 @@ test.describe('T4.2 writing list', () => {
     browser,
   }) => {
     await page.goto('/zh/writing/boundary-example')
-    await page.getByRole('button', { name: 'EN' }).click()
+    await page.getByRole('link', { name: 'EN', exact: true }).click()
     await expect(page).toHaveURL(/\/en\/writing\/boundary-example$/)
 
     await page.goto('/en/writing/en-only-example')
-    await page.getByRole('button', { name: '中' }).click()
+    await page.getByRole('link', { name: '中', exact: true }).click()
     await expect(page).toHaveURL(/\/zh\/writing$/)
     await expect(page.getByRole('status')).toHaveText('这篇文章暂无中文版')
     // design.md §9: notice sits between the heading rule and the filters.
@@ -197,6 +349,15 @@ test.describe('T4.2 writing list', () => {
     expect(order.every(Boolean)).toBe(true)
     await noOverflow(page)
     await page.screenshot({ path: `${shots}/notice.png`, fullPage: true })
+
+    // The next move inside the list (client-side, D-165): gone, and it does
+    // not come back on returning to the same address.
+    await page.getByRole('link', { name: '工程', exact: true }).click()
+    await expect(page).toHaveURL(/category=engineering/)
+    await expect(page.getByRole('status')).toHaveCount(0)
+    await page.goBack()
+    await expect(page).toHaveURL(/\/zh\/writing$/)
+    await expect(page.getByRole('status')).toHaveCount(0)
 
     // Refresh: gone.
     await page.reload()

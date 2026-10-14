@@ -1,10 +1,50 @@
-import type { ReactNode } from 'react'
+import { useRouter } from '@tanstack/react-router'
+import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from 'react'
+
+import { isClientPageHref } from '#/features/routing'
 import { ThemeSwitcher } from '#/components/theme-switcher'
 
 type Lang = 'zh' | 'en'
 type Link = { label: string; href: string }
 type FooterLink = { label: string; href?: string }
 type Navigation = Link & { current?: boolean }
+
+/**
+ * D-165: a plain `<a href>` (so it works without JavaScript) whose ordinary
+ * clicks on public pages are handled by the router instead of reloading the
+ * document — a reload would re-run the deferred font sheet (D-152) and make
+ * the text jump. Modified clicks (new tab, download…) stay with the browser.
+ */
+export function K2Link({
+  href,
+  onClick,
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
+  const router = useRouter()
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    onClick?.(event)
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      (props.target !== undefined && props.target !== '_self') ||
+      props.download !== undefined ||
+      !isClientPageHref(href)
+    )
+      return
+    event.preventDefault()
+    void router.navigate({ href })
+  }
+  return (
+    <a href={href} {...props} onClick={handleClick}>
+      {children}
+    </a>
+  )
+}
 
 export function K2Seal() {
   return (
@@ -30,52 +70,44 @@ export function K2Header({
   return (
     <header className="k2-header">
       <div className="k2-wrap k2-header-inner">
-        <a className="k2-brand" href={homeHref}>
+        <K2Link className="k2-brand" href={homeHref}>
           <K2Seal />
           Kai Li
-        </a>
+        </K2Link>
         <nav aria-label={language === 'zh' ? '主导航' : 'Main navigation'}>
           {navigation.map((item) => (
-            <a
+            <K2Link
               key={item.href}
               href={item.href}
               aria-current={item.current ? 'page' : undefined}
             >
               {item.label}
-            </a>
+            </K2Link>
           ))}
         </nav>
         <span className="k2-language">
           {language === 'zh' ? (
             <b>中</b>
-          ) : onLanguageChange ? (
-            <button
-              type="button"
+          ) : (
+            <K2Link
+              href={languageLinks.zh}
               lang="zh"
-              onClick={() => onLanguageChange('zh')}
+              onClick={() => onLanguageChange?.('zh')}
             >
               中
-            </button>
-          ) : (
-            <a href={languageLinks.zh} lang="zh">
-              中
-            </a>
+            </K2Link>
           )}{' '}
           /{' '}
           {language === 'en' ? (
             <b>EN</b>
-          ) : onLanguageChange ? (
-            <button
-              type="button"
+          ) : (
+            <K2Link
+              href={languageLinks.en}
               lang="en"
-              onClick={() => onLanguageChange('en')}
+              onClick={() => onLanguageChange?.('en')}
             >
               EN
-            </button>
-          ) : (
-            <a href={languageLinks.en} lang="en">
-              EN
-            </a>
+            </K2Link>
           )}
         </span>
         <ThemeSwitcher language={language} />
@@ -84,33 +116,20 @@ export function K2Header({
   )
 }
 
-export function K2Footer({
-  language,
-  links,
-}: {
-  language: Lang
-  links: FooterLink[]
-}) {
+export function K2Footer({ links }: { links: FooterLink[] }) {
   return (
     <footer className="k2-footer">
       <div className="k2-wrap">
         <div className="k2-footer-inner">
           {links.map((link) =>
             link.href ? (
-              <a key={link.label} href={link.href}>
+              <K2Link key={link.label} href={link.href}>
                 {link.label}
-              </a>
+              </K2Link>
             ) : (
-              <span className="k2-pending-link" key={link.label}>
-                {link.label}
-              </span>
+              <span key={link.label}>{link.label}</span>
             ),
           )}
-          <span>
-            {language === 'zh'
-              ? '排版：思源宋体 · 霞鹜文楷 · Inter'
-              : 'Typeset in Source Serif 4 · Inter · Cormorant'}
-          </span>
         </div>
       </div>
     </footer>
@@ -128,9 +147,9 @@ export function K2Pill({
 }) {
   const className = `k2-pill${active ? ' is-active' : ''}`
   return href ? (
-    <a className={className} href={href}>
+    <K2Link className={className} href={href}>
       {children}
-    </a>
+    </K2Link>
   ) : (
     <span className={className}>{children}</span>
   )
@@ -146,7 +165,7 @@ export function K2SectionTitle({
   return (
     <div className="k2-section-title">
       <h2>{children}</h2>
-      {allLink && <a href={allLink.href}>{allLink.label}</a>}
+      {allLink && <K2Link href={allLink.href}>{allLink.label}</K2Link>}
     </div>
   )
 }
@@ -216,14 +235,14 @@ export function K2ArticleItem({
 }: ArticleProps) {
   return (
     <article className="k2-post">
-      <a href={href}>
+      <K2Link href={href}>
         <h3>{title}</h3>
         {summary && <p>{summary}</p>}
         <div className="k2-meta">
           <span className="k2-category">{category}</span>
           <time dateTime={date}>{date.replaceAll('-', '.')}</time>
         </div>
-      </a>
+      </K2Link>
     </article>
   )
 }
@@ -250,9 +269,9 @@ export function K2FeatureArticle({
             </span>
           )}
         </div>
-        <a href={href}>
+        <K2Link href={href}>
           <h3>{title}</h3>
-        </a>
+        </K2Link>
         {summary && <p>{summary}</p>}
       </div>
     </article>
@@ -416,7 +435,7 @@ export function K2BookItem({
       {mode === 'detail' && article && (
         <div className="k2-book-article">
           {language === 'zh' ? '写过：' : 'Wrote: '}
-          <a href={article.href}>{article.title}</a> →
+          <K2Link href={article.href}>{article.title}</K2Link> →
         </div>
       )}
     </li>
@@ -487,13 +506,13 @@ export function K2ArticleHeading({
 }) {
   return (
     <header className="k2-article-head">
-      <a className="k2-article-back" href={backHref}>
+      <K2Link className="k2-article-back" href={backHref}>
         ← {language === 'zh' ? '全部文章' : 'All articles'}
-      </a>
+      </K2Link>
       <div className="k2-meta">
-        <a className="k2-category" href={category.href}>
+        <K2Link className="k2-category" href={category.href}>
           {category.label}
-        </a>
+        </K2Link>
         <time dateTime={date}>{date.replaceAll('-', '.')}</time>
         {minutes !== undefined && (
           <span>
@@ -583,16 +602,16 @@ export function K2ArticleEnd({
         aria-label={language === 'zh' ? '文章翻页' : 'Article pagination'}
       >
         {previous && (
-          <a rel="prev" href={previous.href}>
+          <K2Link rel="prev" href={previous.href}>
             <small>← {language === 'zh' ? '上一篇' : 'Previous'}</small>
             <b>{previous.title}</b>
-          </a>
+          </K2Link>
         )}
         {next && (
-          <a rel="next" href={next.href}>
+          <K2Link rel="next" href={next.href}>
             <small>{language === 'zh' ? '下一篇' : 'Next'} →</small>
             <b>{next.title}</b>
-          </a>
+          </K2Link>
         )}
       </nav>
     </footer>

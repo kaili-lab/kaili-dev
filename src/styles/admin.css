@@ -1,69 +1,269 @@
-/* Admin (development only until real login, D-132). design.md §9 管理端, D-159. */
+/* Admin (development only until real login, D-132). design.md §9 管理端, D-163. */
 /* React can hoist this route stylesheet before the global Tailwind sheet. */
 @layer properties, theme, base, components, utilities;
 
 @layer components {
+  /* ---- frame: left navigation + a main column that scrolls on its own ---- */
   .ad-root {
-    min-height: 100vh;
+    display: flex;
+    height: 100vh;
     background: var(--paper);
     color: var(--ink);
     font-family: var(--ui);
     font-size: 0.95rem;
   }
-  .ad-root .ui-button {
+  /* D-163 ⑤: theme scrollbars; WebKit pseudo-elements are the fallback. */
+  .ad-root,
+  .ad-root *,
+  .ad-dialog {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dot) transparent;
+  }
+  .ad-root ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .ad-root ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .ad-root ::-webkit-scrollbar-thumb {
+    border: 2px solid var(--paper);
+    border-radius: 5px;
+    background: var(--dot);
+  }
+  .ad-root ::-webkit-scrollbar-thumb:hover {
+    background: var(--mute);
+  }
+  .ad-root .ui-button,
+  .ad-dialog .ui-button {
     padding: 6px 12px;
     font-size: 0.9rem;
     white-space: nowrap;
   }
   /* design.md §6: visible 2px cinnabar keyboard focus, admin included. */
-  .ad-root :focus-visible {
+  .ad-root :focus-visible,
+  .ad-dialog :focus-visible {
     outline: 2px solid var(--cinnabar);
     outline-offset: 2px;
   }
   .ad-nav {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 24px;
-    padding: 16px 40px;
-    border-bottom: 1px solid var(--line);
+    flex: none;
+    flex-direction: column;
+    gap: 2px;
+    width: 200px;
+    padding: 20px 12px;
+    border-right: 1px solid var(--line);
+  }
+  .ad-brand {
+    padding: 0 10px 18px;
+    font-weight: 600;
   }
   .ad-nav nav {
-    display: flex;
-    gap: 20px;
-    overflow-x: auto;
+    display: grid;
+    gap: 2px;
   }
-  .ad-nav a {
+  .ad-nav nav a {
+    padding: 7px 10px;
+    border-radius: 3px;
     color: var(--mute);
+    text-decoration: none;
   }
-  .ad-nav a[aria-current='page'] {
+  .ad-nav nav a:hover {
+    color: var(--ink);
+  }
+  .ad-nav nav a[aria-current='page'] {
+    background: var(--paper-2);
     color: var(--ink);
     font-weight: 600;
   }
   .ad-nav-side {
-    display: flex;
-    gap: 16px;
-    margin-left: auto;
+    display: grid;
+    gap: 6px;
+    margin-top: auto;
+    padding: 10px;
     color: var(--mute);
-    font-size: 0.86rem;
+    font-size: 0.84rem;
+  }
+  .ad-nav-side a {
+    color: var(--mute);
+  }
+  .ad-main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
   }
   .ad-page {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 32px 40px 88px;
+    max-width: 1240px;
+    padding: 24px 32px 64px;
   }
   .ad-page-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 12px;
+    margin-bottom: 16px;
   }
   .ad-page-head h1 {
     margin: 0;
     font-size: 1.4rem;
     font-weight: 600;
   }
+  .ad-page-head > :last-child:not(h1, .ad-count) {
+    margin-left: auto;
+  }
+  .ad-count {
+    color: var(--mute);
+    font-size: 0.9rem;
+  }
+
+  /* ---- list pages: fixed head, scrolling table, pager below (D-163 ②) ---- */
+  .ad-list {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-bottom: 0;
+  }
+  .ad-list-head {
+    flex: none;
+  }
+  .ad-list-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-top: 1px solid var(--line);
+  }
+  .ad-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ad-filters .ui-input {
+    width: auto;
+  }
+  .ad-filters .ad-search {
+    width: 240px;
+  }
+  .ad-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .ad-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--mute);
+    font-size: 0.84rem;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ad-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .ad-table tbody tr:hover td {
+    background: var(--paper-2);
+  }
+  .ad-table-empty {
+    padding: 32px 10px;
+    color: var(--mute);
+    text-align: center;
+  }
+  .ad-cell-title a {
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .ad-cell-title a:hover {
+    color: var(--cinnabar);
+  }
+  .ad-cell-title {
+    font-weight: 600;
+  }
+  .ad-cell-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px 12px;
+    font-size: 0.88rem;
+    white-space: nowrap;
+  }
+  .ad-cell-actions a,
+  .ad-cell-link {
+    color: var(--indigo);
+  }
+  .ad-cell-link {
+    display: block;
+  }
+  .ad-link-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--indigo);
+    font: inherit;
+    cursor: pointer;
+  }
+  .ad-link-button:disabled {
+    color: var(--mute);
+    cursor: not-allowed;
+  }
+  .ad-danger-text:not(:disabled) {
+    color: var(--cinnabar);
+  }
+  .ad-pager {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 16px;
+    border-top: 1px solid var(--line);
+    font-size: 0.86rem;
+  }
+  .ad-pager-info {
+    color: var(--mute);
+  }
+  .ad-pager-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .ad-pager-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ad-pager-gap {
+    color: var(--mute);
+  }
+  .ad-page-link {
+    min-width: 30px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--ink);
+    text-align: center;
+    text-decoration: none;
+  }
+  a.ad-page-link:hover {
+    border-color: var(--dot);
+  }
+  .ad-page-link.is-current {
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-page-link.is-off {
+    color: var(--mute);
+  }
+
+  /* ---- shared bits ---- */
   .ad-state {
     white-space: nowrap;
   }
@@ -81,65 +281,28 @@
     color: var(--mute);
     font-family: var(--num);
     font-size: 0.8rem;
+    white-space: nowrap;
   }
-  .ad-empty {
-    margin: 0;
-    padding: 32px 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    color: var(--ink-2);
-  }
-  .ad-stack {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--line);
-  }
-  .ad-stack li {
-    padding: 16px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .ad-stack-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 16px;
-    margin-top: 6px;
-    font-size: 0.86rem;
-  }
-  .ad-main {
-    min-width: 0;
-  }
-  .ad-shared {
-    display: grid;
-    gap: 12px;
-    margin: 0 0 24px;
-    padding: 16px;
-    border: 1px solid var(--line);
-    border-radius: 4px;
-  }
-  .ad-shared legend {
-    padding: 0 6px;
-    color: var(--mute);
-    font-size: 0.86rem;
-  }
-  .ad-shared label,
-  .ad-content label {
+  .ad-field {
     display: grid;
     gap: 6px;
-  }
-  .ad-shared small {
-    color: var(--mute);
   }
   .ad-inline {
     display: flex;
     align-items: center;
     gap: 8px;
   }
+  .ad-inline .ui-input {
+    min-width: 0;
+  }
   .ad-tags {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 16px;
+    gap: 6px 14px;
+  }
+  .ad-tags > span {
+    width: 100%;
   }
   .ad-tags label {
     display: flex;
@@ -152,12 +315,14 @@
     border-bottom: 1px solid var(--line);
   }
   .ad-tab {
+    margin-bottom: -1px;
     padding: 8px 12px;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--mute);
     font: inherit;
+    text-decoration: none;
     cursor: pointer;
   }
   .ad-tab.is-active {
@@ -165,32 +330,8 @@
     color: var(--ink);
     font-weight: 600;
   }
-  .ad-content {
-    display: grid;
-    gap: 16px;
-    margin-top: 16px;
-  }
-  .ad-body-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .ad-toggle {
-    display: flex;
-    gap: 4px;
-  }
-  .ad-body {
-    min-height: 360px;
-    font-family: var(--num);
-    line-height: 1.6;
-    resize: vertical;
-  }
-  .ad-statusline {
-    margin: 0;
-  }
-  .ad-actions {
-    display: grid;
-    gap: 8px;
+  .ad-list-head .ad-tabs {
+    margin-bottom: 12px;
   }
   .ad-buttons {
     display: flex;
@@ -198,6 +339,11 @@
   }
   .ad-primary {
     border-color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-danger {
+    border-color: var(--cinnabar);
+    color: var(--cinnabar);
     font-weight: 600;
   }
   .ad-feedback {
@@ -210,76 +356,6 @@
   .ad-error {
     color: var(--cinnabar);
   }
-  .ad-references {
-    display: grid;
-    gap: 12px;
-    padding-top: 16px;
-    border-top: 1px solid var(--line);
-  }
-  .ad-references h2,
-  .ad-references summary {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .ad-refs {
-    display: grid;
-    gap: 12px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .ad-refs p {
-    margin: 0 0 6px;
-    color: var(--ink-2);
-  }
-  .ad-ref-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.86rem;
-  }
-  .ad-ref-actions a {
-    color: var(--indigo);
-  }
-  .ad-editor .ad-toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 24px;
-    margin: 0 0 16px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--paper);
-  }
-  .ad-editor .ad-actions {
-    grid-auto-flow: column;
-    align-items: center;
-  }
-  .ad-editor .ad-shared {
-    margin: 24px 0;
-  }
-  .ad-sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .ad-field {
-    display: grid;
-    gap: 8px;
-  }
-  .ad-codemirror {
-    min-width: 0;
-  }
   .ad-field-error {
     color: var(--cinnabar);
     font-size: 0.86rem;
@@ -289,73 +365,438 @@
     color: var(--mute);
     font-size: 0.86rem;
   }
+  .ad-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ad-body-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ad-body-label {
+    margin-right: auto;
+  }
+  .ad-toggle {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .ad-toggle-button {
+    padding: 3px 10px;
+    border: 0;
+    background: var(--paper);
+    color: var(--mute);
+    font: inherit;
+    font-size: 0.84rem;
+    cursor: pointer;
+  }
+  .ad-toggle-button[aria-pressed='true'] {
+    background: var(--paper-2);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .ad-codemirror {
+    min-width: 0;
+  }
   .ad-preview {
+    min-width: 0;
     min-height: 360px;
     padding: 16px;
     border: 1px solid var(--line);
     border-radius: 3px;
+    overflow-wrap: anywhere;
+  }
+  .ad-preview-wait {
+    padding: 16px 0;
+  }
+  .ad-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  /* Idea fields share the public article measure (.prose, 41rem), so the
+     editor, preview and their buttons line up (D-164). */
+  .ad-quick,
+  .ad-idea-detail .ad-field {
+    max-width: 41rem;
+  }
+  .ad-idea-detail {
+    max-width: calc(41rem + 64px);
   }
   .ad-quick {
     display: grid;
-    gap: 12px;
-    margin-bottom: 32px;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .ad-quick .ad-preview {
+    min-height: 0;
+    max-height: 160px;
+    overflow: auto;
   }
   .ad-after {
     margin-top: 16px;
   }
-  .ad-idea-text {
-    margin: 0;
-    white-space: pre-wrap;
+  /* D-164 ②: one line; the cell takes the spare width and truncates. */
+  .ad-cell-idea {
+    width: 100%;
+    max-width: 0;
   }
-  .ad-taxonomy strong {
+  .ad-idea-link {
+    display: block;
+    overflow: hidden;
+    color: var(--ink);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ad-idea-link:hover {
+    color: var(--cinnabar);
+  }
+  .ad-idea-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    margin: 0 0 16px;
+    color: var(--mute);
+    font-size: 0.86rem;
+  }
+  .ad-idea-meta a {
+    color: var(--indigo);
+  }
+
+  /* ---- editor: sticky action row, content left, sidebar right (D-163 ③) ---- */
+  .ad-editor {
+    min-height: 100%;
+  }
+  .ad-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .ad-back {
+    color: var(--mute);
+    text-decoration: none;
+  }
+  .ad-back:hover {
+    color: var(--ink);
+  }
+  .ad-toolbar-title {
+    max-width: 36vw;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ad-dirty {
+    font-size: 0.84rem;
+  }
+  .ad-toolbar-gap {
+    flex: 1;
+  }
+  .ad-settings-toggle {
+    display: none;
+  }
+  .ad-editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 28px;
+    max-width: 1400px;
+    padding: 20px 32px 64px;
+  }
+  .ad-editor-main {
+    min-width: 0;
+  }
+  .ad-langbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ad-langbar .ad-tabs {
+    border-bottom: 0;
+  }
+  .ad-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    color: var(--ink-2);
+    font-size: 0.86rem;
+    cursor: pointer;
+  }
+  .ad-compare.is-on {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  .ad-content {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  .ad-reference-copy {
+    min-width: 0;
+    padding-left: 20px;
+    border-left: 1px solid var(--line);
+  }
+  .ad-reference-title {
+    margin: 12px 0 6px;
     font-weight: 600;
   }
-  .ad-dialog-backdrop {
+  .ad-reference-summary {
+    margin: 0 0 12px;
+    color: var(--ink-2);
+  }
+  .ad-reference-body {
+    margin: 0;
+    color: var(--ink-2);
+    font-family: var(--num);
+    font-size: 0.84rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .ad-sidebar {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-width: 0;
+  }
+  .ad-panel {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .ad-panel h2,
+  .ad-panel legend {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+  .ad-panel legend {
+    padding: 0 6px;
+  }
+  .ad-panel a {
+    color: var(--indigo);
+  }
+  .ad-shared {
+    min-inline-size: 0;
+  }
+  .ad-references .ad-inline {
+    flex-wrap: wrap;
+  }
+  .ad-publish-row {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 8px;
+    margin: 0;
+    font-size: 0.86rem;
+  }
+  .ad-publish-date {
+    display: block;
+  }
+  .ad-refs {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ad-refs li {
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--line);
+    font-size: 0.88rem;
+  }
+  .ad-refs summary {
+    cursor: pointer;
+  }
+  .ad-refs p {
+    margin: 6px 0;
+    color: var(--ink-2);
+    white-space: pre-wrap;
+  }
+  .ad-ref-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.86rem;
+  }
+
+  /* ---- dialogs: Base UI, rendered in a portal outside .ad-root ---- */
+  .ad-backdrop {
     position: fixed;
     inset: 0;
     z-index: 10;
-    display: grid;
-    place-items: center;
-    padding: 20px;
     background: color-mix(in srgb, var(--paper) 75%, transparent);
   }
   .ad-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 11;
     display: grid;
     gap: 12px;
-    width: min(100%, 440px);
-    padding: 24px;
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 22px;
     border: 1px solid var(--line);
     border-radius: 4px;
     background: var(--paper);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 0.95rem;
+    transform: translate(-50%, -50%);
   }
-  .ad-dialog h2 {
+  .ad-dialog-title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+    font-weight: 600;
   }
-  .ad-dialog label {
-    display: grid;
-    gap: 6px;
+  .ad-dialog-text {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 0.92rem;
+  }
+  .ad-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 1100px) {
+    .ad-compare.is-on,
+    .ad-split {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ad-reference-copy {
+      padding: 14px 0 0;
+      border-top: 1px solid var(--line);
+      border-left: 0;
+    }
   }
   @media (max-width: 960px) {
-    .ad-nav {
-      padding: 16px 28px;
+    .ad-root {
+      flex-direction: column;
     }
-    .ad-page {
-      padding: 24px 28px 88px;
-    }
-  }
-  @media (max-width: 640px) {
     .ad-nav {
-      padding: 12px 20px;
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      width: auto;
+      padding: 10px 20px;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+    .ad-brand {
+      padding: 0;
+    }
+    .ad-nav nav {
+      display: flex;
+      gap: 4px;
     }
     .ad-nav-side {
-      margin-left: 0;
+      display: flex;
+      gap: 12px;
+      margin-top: 0;
+      margin-left: auto;
+      padding: 0;
     }
     .ad-page {
-      padding: 20px 20px 88px;
+      padding: 18px 20px 48px;
     }
-    .ad-editor .ad-actions {
-      grid-auto-flow: row;
+    .ad-list {
+      padding-bottom: 0;
+    }
+    .ad-toolbar {
+      padding: 10px 20px;
+    }
+    .ad-toolbar-title {
+      max-width: 50vw;
+    }
+    .ad-settings-toggle {
+      display: inline-block;
+    }
+    .ad-editor-grid {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 16px 20px 48px;
+    }
+    .ad-sidebar {
+      display: none;
+      grid-row: 1;
+    }
+    .ad-sidebar.is-open {
+      display: grid;
+    }
+  }
+  @media (max-width: 760px) {
+    .ad-filters .ad-search {
+      width: 100%;
+    }
+    .ad-table,
+    .ad-table tbody,
+    .ad-table tr,
+    .ad-table td {
+      display: block;
+    }
+    /* Hidden from sight only; screen readers keep the column names. */
+    .ad-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .ad-table tr {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .ad-table td {
+      padding: 2px 0;
+      border: 0;
+    }
+    .ad-table tbody tr:hover td {
+      background: none;
+    }
+    .ad-table td[data-label]::before {
+      content: attr(data-label) '：';
+      color: var(--mute);
+      font-family: var(--ui);
+      font-size: 0.84rem;
+    }
+    .ad-cell-actions {
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .ad-cell-idea {
+      width: auto;
+      max-width: none;
+    }
+    .ad-list-scroll {
+      border-top: 0;
     }
   }
 }

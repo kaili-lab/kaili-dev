@@ -31,6 +31,9 @@
 | P5 检查点（测试与用例表对应） | GPT-6.1 Sol 复核 | ✅ 通过（第 2 轮），遗漏「无」。证据 `docs/notes/2026-10-14-T5.1-T5.2.md` |
 | T5.3a 后台信息结构 | Claude 起草 / GPT-6.1 Sol 复核 | ✅ 已完成：`docs/product/admin-design-note.md`，补充 D-158、D-160；第 3 轮复核通过 |
 | T5.3b / T5.3c / T5.4 后台 | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：方案 84 张截图、选定列表 B + 编辑器 B（D-159）、design.md §9 管理端；后台（开发环境假登录 Kai Li）、CodeMirror 编辑器、Idea、分类标签；开发服务器 e2e 31/31（含 R-SEO-04/05 中英文联验、T6.1 联验、绕过表单、请求期间编辑、离开提示）；生产不可达。GPT 第 4 轮复核通过。证据 `docs/notes/2026-10-14-T5.3-T5.4.md` |
+| T5.5 后台改为传统布局（D-161 ~ D-163） | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：左侧导航、表格 + 分页（每页 15 条，页码与筛选在网址参数）、编辑器右侧边栏、对照另一种语言、编辑 / 分栏 / 预览、Base UI 弹窗替代 `window.confirm`、主题滚动条、页脚去字体说明。check 431/431、build、dry-run、生产 Playwright 122/122、后台 36/36。GPT 第 2 轮复核通过（第 1 轮 4 项 P2、2 项 P3 已关闭）。证据 `docs/notes/2026-10-14-gates-output-13.txt`、`docs/notes/2026-10-14-T5.5-review-r*.md` |
+| T5.6 Idea 列表与详情（D-164） | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：快速输入「保存」并入输入框上方一行并支持 ⌘Enter；列表内容单行省略、可点击；详情页默认预览（`?mode=edit` 编辑），显示时间、关联文章、「用它写文章」「删除」。check 431/431、build、dry-run、生产 Playwright 122/122、后台 39/39。GPT 第 3 轮复核通过。证据 `docs/notes/2026-10-14-gates-output-16.txt`、`docs/notes/2026-10-14-T5.6-review-r*.md` |
+| T6.2 站内客户端跳转（D-165） | GPT-6.1 Sol 起手（中途停止）/ Claude 接手完成 / GPT-6.1 Sol 复核 | ✅ 已完成：公开站站内链接改为客户端跳转（`K2Link` + `isClientPageHref`），切换筛选、导航不再整页刷新和字体抖动；语言切换保留 D-036 / D-142，提示离开地址即清除；筛选链接按实时地址生成（修复复核中发现的连续点击丢条件竞态）。check 447/447、build、dry-run、生产 Playwright 连续 3 次 125/125、后台 39/39。GPT 第 3 轮复核通过。证据 `docs/notes/2026-10-14-gates-output-19.txt`、`docs/notes/2026-10-14-T6.2-review-r*.md` |
 | 原型之后（GitHub 登录、D1、R2、部署） | 见「尚未纳入当前任务表的能力」 | 未拆分任务；v1 范围保留 |
 | T6.1 基础 SEO 联验与网站地图 | Claude 执行 / GPT-6.1 Sol 复核（D-150） | ✅ 已完成：`/sitemap.xml` 只含公开正式页，hreflang 与页面一致，XML 经真实解析；保存发布联验（保存不变、首次发布只新增该语言页、再发布更新 lastmod、另一语言不变）在后台 e2e 完成；GPT 第 5 轮复核通过。证据 `docs/notes/2026-10-14-T6.1.md` |
 

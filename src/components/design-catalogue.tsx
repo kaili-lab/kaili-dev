@@ -660,7 +660,7 @@ export function DesignCatalogue({ language }: { language: 'zh' | 'en' }) {
           </label>
         </Example>
       </main>
-      <K2Footer language={language} links={links} />
+      <K2Footer links={links} />
     </div>
   )
 }

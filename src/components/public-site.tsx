@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { useRouterState } from '@tanstack/react-router'
-import { K2Footer, K2Header, K2PageHeading } from '#/components/k2'
+import { K2Footer, K2Header, K2Link, K2PageHeading } from '#/components/k2'
 import type { Language } from '#/features/routing'
 
 function socialLinks(language: Language) {
@@ -46,24 +46,27 @@ export function PublicLayout({
   page?: 'projects' | 'bookshelf'
   notFound?: boolean
 }) {
-  const currentPage = useRouterState({
-    select: (state) => state.location.pathname,
+  const location = useRouterState({
+    select: (state) => state.location,
   })
-  function chooseLanguage(next: Language) {
-    document.cookie = `kaili-language=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
-    const pathname = window.location.pathname
+  const currentPage = location.pathname
+  const languageHref = (next: Language) => {
+    if (notFound) return `/${next}`
     if (article) {
-      const target = article.alternatePublished
+      return article.alternatePublished
         ? `/${next}/writing/${article.slug}`
         : `/${next}/writing`
-      if (!article.alternatePublished) {
-        sessionStorage.setItem('kaili-language-notice', next)
-      }
-      window.location.assign(target)
-    } else if (pathname.endsWith('/writing')) {
-      window.location.assign(`/${next}/writing${window.location.search}`)
-    } else {
-      window.location.assign(`/${next}${page ? `/${page}` : ''}`)
+    }
+    if (currentPage.endsWith('/writing')) {
+      return `/${next}/writing${location.searchStr}`
+    }
+    return `/${next}${page ? `/${page}` : ''}`
+  }
+
+  function chooseLanguage(next: Language) {
+    document.cookie = `kaili-language=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
+    if (article && !article.alternatePublished) {
+      sessionStorage.setItem('kaili-language-notice', next)
     }
   }
 
@@ -84,11 +87,11 @@ export function PublicLayout({
             current: page === 'bookshelf',
           },
         ]}
-        languageLinks={{ zh: '/zh', en: '/en' }}
+        languageLinks={{ zh: languageHref('zh'), en: languageHref('en') }}
         onLanguageChange={notFound ? undefined : chooseLanguage}
       />
       <main className="k2-wrap">{children}</main>
-      <K2Footer language={language} links={socialLinks(language)} />
+      <K2Footer links={socialLinks(language)} />
     </div>
   )
 }
@@ -118,9 +121,9 @@ export function PublicNotFound() {
         {language === 'zh'
           ? '这个地址没有可公开访问的页面。'
           : 'There is no public page at this address.'}{' '}
-        <a href={`/${language}`}>
+        <K2Link href={`/${language}`}>
           {language === 'zh' ? '返回首页 →' : 'Back to home →'}
-        </a>
+        </K2Link>
       </p>
     </PublicLayout>
   )

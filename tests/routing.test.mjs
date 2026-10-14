@@ -4,6 +4,7 @@ import {
   parseAcceptLanguage,
   resolveLanguage,
   visiblePosts,
+  isClientPageHref,
 } from '../src/features/routing.ts'
 import { publishedPosts } from '../src/server/data/posts.ts'
 
@@ -48,5 +49,28 @@ describe('published article requests reject unsafe language keys', () => {
       requireArticleRequest({ slug: 'private-example', language: 'category' }),
     ).toThrow('Unsupported language')
     expect(requireLanguage('zh')).toBe('zh')
+  })
+})
+
+describe('D-165 client-side page links', () => {
+  it.each([
+    ['/zh', true],
+    ['/en/writing', true],
+    ['/zh/writing?category=engineering&tag=typescript', true],
+    ['/zh/writing/boundary-example', true],
+    ['/zh/writing/boundary-example#start', true],
+    ['/writing/boundary-example', false],
+    ['/', false],
+    ['/zhx', false],
+    ['https://github.com/kaili-lab', false],
+    ['mailto:hello@kaili.dev', false],
+    ['//example.com/zh', false],
+    ['#start', false],
+    ['/og/zh/boundary-example', false],
+    ['/sitemap.xml', false],
+    ['/images/say-right.png', false],
+    ['/fonts/inter-OFL.txt', false],
+  ])('%s → %s', (href, expected) => {
+    expect(isClientPageHref(href)).toBe(expected)
   })
 })

@@ -104,3 +104,16 @@ export function visiblePosts(
 export function alternateLanguage(language: Language): Language {
   return language === 'zh' ? 'en' : 'zh'
 }
+
+/**
+ * D-165: whether a link points at a public page this app renders, so a click
+ * can be handled by the router instead of reloading the document. Anything
+ * else (other sites, mail, in-page anchors, OG images, the sitemap, static
+ * files, server-chosen language redirects) stays a browser navigation.
+ */
+export function isClientPageHref(href: string): boolean {
+  const path = href.split(/[?#]/, 1)[0]!
+  // Only language-prefixed pages. `/` and the neutral `/writing/<slug>` pick a
+  // language on the server (D-142), so they always load as documents.
+  return /^\/(zh|en)(\/|$)/.test(path) && !/\.[a-z0-9]+$/i.test(path)
+}

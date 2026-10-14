@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useBlocker, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 
 import type { Language } from '#/features/article-versions'
 import {
@@ -10,7 +10,10 @@ import {
   type EditorView,
 } from '#/features/admin.functions'
 import { AdminState, stateLabel } from '#/components/admin/admin-shell'
+import { FormDialog, useLeaveGuard } from '#/components/admin/dialogs'
+import { lastPostsSearch } from '#/components/admin/list-page'
 import { MarkdownField } from '#/components/admin/markdown-editor'
+import { TaxonomyFields } from '#/components/admin/taxonomy-page'
 
 type Content = { title: string; summary: string; body: string }
 type Shared = { slug: string; category: string; tags: string[] }
@@ -128,6 +131,9 @@ export function ArticleEditor({
   const [busy, setBusy] = useState<'save' | 'publish' | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [newCategory, setNewCategory] = useState(false)
+  const [compare, setCompare] = useState(false)
+  // Narrow screens fold the sidebar behind 文章设置 (D-163 ③).
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const leaving = useRef(false)
   // Latest edits, read after an await (the closure would hold stale ones).
   const latest = useRef({ contents, shared, ideaIds })
@@ -158,14 +164,7 @@ export function ArticleEditor({
   const anyDirty = dirty.zh || dirty.en || dirty.shared || dirty.refs
 
   // D-038: warn before leaving with unsaved work; switching tabs is not leaving.
-  useBlocker({
-    shouldBlockFn: ({ current, next }) => {
-      if (leaving.current || !anyDirty) return false
-      if (current.pathname === next.pathname) return false
-      return !window.confirm('有未保存的修改，确定离开吗？')
-    },
-    enableBeforeUnload: () => anyDirty,
-  })
+  const leaveDialog = useLeaveGuard(anyDirty, { leaving })
 
   const setField = (field: keyof Content, value: string) =>
     setContents((previous) => ({
@@ -215,8 +214,17 @@ export function ArticleEditor({
           ),
         )
         const first = result.errors[0]
+        if (
+          result.errors.some((error) =>
+            ['category', 'tags', 'slug'].includes(errorField[error]),
+          )
+        )
+          setSettingsOpen(true)
         if (first)
-          document.getElementById(`field-${errorField[first]}`)?.focus()
+          // After the sidebar has been unfolded (narrow screens).
+          requestAnimationFrame(() =>
+            document.getElementById(`field-${errorField[first]}`)?.focus(),
+          )
         return
       }
       const next = result.view
@@ -267,11 +275,6 @@ export function ArticleEditor({
     }
   }
 
-  const state = view.states[language]
-  const firstPublished = view.article[language].published?.publishedAt.slice(
-    0,
-    10,
-  )
   const publishedLanguages = languages.filter(
     (item) => view.article[item].published,
   )
@@ -280,18 +283,199 @@ export function ArticleEditor({
     .filter((idea) => idea !== undefined)
   const available = view.ideas.filter((idea) => !ideaIds.includes(idea.id))
 
+  const other: Language = language === 'zh' ? 'en' : 'zh'
+  const otherContent = contents[other]
+  const heading =
+    content.title.trim() ||
+    contents.zh.title.trim() ||
+    contents.en.title.trim() ||
+    '（无标题）'
+
   return (
-    <section className="ad-page ad-editor">
+    <section className="ad-editor">
       <div className="ad-toolbar">
-        <p className="ad-statusline">
-          当前：
-          <AdminState state={state} />
-          {firstPublished ? (
-            <span className="ad-time"> · 首次发布 {firstPublished}</span>
-          ) : null}
-          {publishedLanguages.includes(language) && view.article.slug ? (
-            <>
-              {' · '}
+        <Link to="/admin/posts" search={lastPostsSearch()} className="ad-back">
+          ← 文章
+        </Link>
+        <span className="ad-toolbar-title">{heading}</span>
+        {anyDirty ? <span className="ad-dirty">• 有未保存修改</span> : null}
+        <span className="ad-toolbar-gap" />
+        <FeedbackLine feedback={feedback} />
+        <button
+          type="button"
+          className="ui-button ad-settings-toggle"
+          aria-expanded={settingsOpen}
+          aria-controls="editor-sidebar"
+          onClick={() => setSettingsOpen(!settingsOpen)}
+        >
+          {settingsOpen ? '收起设置' : '文章设置'}
+        </button>
+        <div className="ad-buttons">
+          <button
+            type="button"
+            className="ui-button"
+            disabled={busy !== null}
+            onClick={() => void run('save')}
+          >
+            {busy === 'save' ? '保存中…' : '保存'}
+          </button>
+          <button
+            type="button"
+            className="ui-button ad-primary"
+            disabled={busy !== null}
+            onClick={() => void run('publish')}
+          >
+            {busy === 'publish'
+              ? '发布中…'
+              : language === 'zh'
+                ? '发布中文'
+                : '发布英文'}
+          </button>
+        </div>
+      </div>
+
+      <div className="ad-editor-grid">
+        <div className="ad-editor-main">
+          <div className="ad-langbar">
+            <div role="tablist" aria-label="语言" className="ad-tabs">
+              {languages.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={item === language}
+                  className={item === language ? 'ad-tab is-active' : 'ad-tab'}
+                  onClick={() => {
+                    void navigate({
+                      to: '.',
+                      search: (previous: Record<string, unknown>) => ({
+                        ...previous,
+                        lang: item,
+                      }),
+                      replace: true,
+                    })
+                  }}
+                >
+                  {languageName[item]} · {stateLabel(view.states[item])}
+                  {dirty[item] ? ' •' : ''}
+                  {dirty[item] ? (
+                    <span className="ad-sr">有未保存修改</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            <label className="ad-check">
+              <input
+                type="checkbox"
+                checked={compare}
+                onChange={(event) => setCompare(event.target.checked)}
+              />
+              对照{languageName[other]}
+            </label>
+          </div>
+
+          <div className={compare ? 'ad-compare is-on' : 'ad-compare'}>
+            <div className="ad-content">
+              <label className="ad-field">
+                <span>标题</span>
+                <input
+                  id="field-title"
+                  className="ui-input"
+                  value={content.title}
+                  onChange={(event) => setField('title', event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.title)}
+                />
+                {fieldErrors.title ? (
+                  <small className="ad-field-error">{fieldErrors.title}</small>
+                ) : null}
+              </label>
+              <label className="ad-field">
+                <span>摘要</span>
+                <input
+                  id="field-summary"
+                  className="ui-input"
+                  value={content.summary}
+                  onChange={(event) => setField('summary', event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.summary)}
+                />
+                {fieldErrors.summary ? (
+                  <small className="ad-field-error">
+                    {fieldErrors.summary}
+                  </small>
+                ) : null}
+              </label>
+              <div id="field-body" tabIndex={-1}>
+                {fieldErrors.body ? (
+                  <small className="ad-field-error">{fieldErrors.body}</small>
+                ) : null}
+                <MarkdownField
+                  key={language}
+                  heading="正文"
+                  label={`${languageName[language]}正文`}
+                  value={content.body}
+                  onChange={(value) => setField('body', value)}
+                  split
+                />
+              </div>
+            </div>
+            {compare ? (
+              <aside
+                className="ad-reference-copy"
+                aria-label={`${languageName[other]}（只读）`}
+              >
+                <p className="ad-muted">
+                  {languageName[other]} · {stateLabel(view.states[other])}
+                  （只读）
+                </p>
+                {otherContent.title ||
+                otherContent.summary ||
+                otherContent.body ? (
+                  <>
+                    <p className="ad-reference-title">
+                      {otherContent.title || '（无标题）'}
+                    </p>
+                    <p className="ad-reference-summary">
+                      {otherContent.summary}
+                    </p>
+                    <pre className="ad-reference-body">{otherContent.body}</pre>
+                  </>
+                ) : (
+                  <p className="ad-muted">这个语言还没有内容。</p>
+                )}
+              </aside>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          id="editor-sidebar"
+          className={settingsOpen ? 'ad-sidebar is-open' : 'ad-sidebar'}
+        >
+          <section className="ad-panel" aria-labelledby="panel-publish">
+            <h2 id="panel-publish">发布</h2>
+            {languages.map((item) => {
+              const date = view.article[item].published?.publishedAt.slice(
+                0,
+                10,
+              )
+              return (
+                <p key={item} className="ad-publish-row">
+                  <span className="ad-muted">{languageName[item]}</span>
+                  <span>
+                    <AdminState state={view.states[item]} />
+                    {date ? (
+                      <span className="ad-time ad-publish-date">
+                        首次发布 {date}
+                      </span>
+                    ) : null}
+                  </span>
+                </p>
+              )
+            })}
+            <p className="ad-muted">
+              「保存」不改变公开页面；「发布」只发布{languageName[language]}。
+            </p>
+            {publishedLanguages.includes(language) && view.article.slug ? (
               <a
                 href={`/${language}/writing/${view.article.slug}`}
                 target="_blank"
@@ -299,229 +483,149 @@ export function ArticleEditor({
               >
                 查看公开页 ↗
               </a>
-            </>
-          ) : null}
-        </p>
-        <div className="ad-actions">
-          <div className="ad-buttons">
-            <button
-              type="button"
-              className="ui-button"
-              disabled={busy !== null}
-              onClick={() => void run('save')}
-            >
-              {busy === 'save' ? '保存中…' : '保存'}
-            </button>
-            <button
-              type="button"
-              className="ui-button ad-primary"
-              disabled={busy !== null}
-              onClick={() => void run('publish')}
-            >
-              {busy === 'publish'
-                ? '发布中…'
-                : language === 'zh'
-                  ? '发布中文'
-                  : '发布英文'}
-            </button>
-          </div>
-          <FeedbackLine feedback={feedback} />
-        </div>
-      </div>
+            ) : null}
+          </section>
 
-      <div role="tablist" aria-label="语言" className="ad-tabs">
-        {languages.map((item) => (
-          <button
-            key={item}
-            type="button"
-            role="tab"
-            aria-selected={item === language}
-            className={item === language ? 'ad-tab is-active' : 'ad-tab'}
-            onClick={() => {
-              void navigate({
-                to: '.',
-                search: (previous: Record<string, unknown>) => ({
-                  ...previous,
-                  lang: item,
-                }),
-                replace: true,
-              })
-            }}
-          >
-            {languageName[item]} · {stateLabel(view.states[item])}
-            {dirty[item] ? ' •' : ''}
-            {dirty[item] ? <span className="ad-sr">有未保存修改</span> : null}
-          </button>
-        ))}
-      </div>
-
-      <div className="ad-content">
-        <label>
-          <span>标题</span>
-          <input
-            id="field-title"
-            className="ui-input"
-            value={content.title}
-            onChange={(event) => setField('title', event.target.value)}
-            aria-invalid={Boolean(fieldErrors.title)}
-          />
-          {fieldErrors.title ? (
-            <small className="ad-field-error">{fieldErrors.title}</small>
-          ) : null}
-        </label>
-        <label>
-          <span>摘要</span>
-          <input
-            id="field-summary"
-            className="ui-input"
-            value={content.summary}
-            onChange={(event) => setField('summary', event.target.value)}
-            aria-invalid={Boolean(fieldErrors.summary)}
-          />
-          {fieldErrors.summary ? (
-            <small className="ad-field-error">{fieldErrors.summary}</small>
-          ) : null}
-        </label>
-        <div id="field-body" tabIndex={-1}>
-          {fieldErrors.body ? (
-            <small className="ad-field-error">{fieldErrors.body}</small>
-          ) : null}
-          <MarkdownField
-            key={language}
-            heading="正文"
-            label={`${languageName[language]}正文`}
-            value={content.body}
-            onChange={(value) => setField('body', value)}
-          />
-        </div>
-      </div>
-
-      <fieldset className="ad-shared">
-        <legend>
-          共享信息{dirty.shared ? ' •' : ''}
-          {dirty.shared ? <span className="ad-sr"> 有未保存修改</span> : null}
-        </legend>
-        <label>
-          <span>slug</span>
-          <input
-            id="field-slug"
-            className="ui-input"
-            value={shared.slug}
-            readOnly={view.slugLocked}
-            onChange={(event) =>
-              setShared({ ...shared, slug: event.target.value })
-            }
-            aria-invalid={Boolean(fieldErrors.slug)}
-          />
-          <small>
-            {view.slugLocked
-              ? '已发布后锁定'
-              : '小写字母、数字和连字符；发布前必填'}
-          </small>
-          {fieldErrors.slug ? (
-            <small className="ad-field-error">{fieldErrors.slug}</small>
-          ) : null}
-        </label>
-        <label>
-          <span>分类</span>
-          <span className="ad-inline">
-            <select
-              id="field-category"
-              className="ui-input"
-              value={shared.category}
-              onChange={(event) =>
-                setShared({ ...shared, category: event.target.value })
-              }
-              aria-invalid={Boolean(fieldErrors.category)}
-            >
-              <option value="">请选择</option>
-              {view.categories.map((category) => (
-                <option key={category.slug} value={category.slug}>
-                  {category.zh}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="ui-button"
-              onClick={() => setNewCategory(true)}
-            >
-              新建分类
-            </button>
-          </span>
-          {fieldErrors.category ? (
-            <small className="ad-field-error">{fieldErrors.category}</small>
-          ) : null}
-        </label>
-        <div
-          id="field-tags"
-          tabIndex={-1}
-          className="ad-tags"
-          role="group"
-          aria-label="标签"
-        >
-          <span>标签</span>
-          {view.tags.map((tag) => (
-            <label key={tag.slug}>
-              <input
-                type="checkbox"
-                checked={shared.tags.includes(tag.slug)}
-                onChange={(event) =>
-                  setShared({
-                    ...shared,
-                    tags: event.target.checked
-                      ? [...shared.tags, tag.slug]
-                      : shared.tags.filter((item) => item !== tag.slug),
-                  })
-                }
-              />{' '}
-              {tag.zh}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <details className="ad-references">
-        <summary>
-          参考资料（Idea · {attached.length}）{dirty.refs ? ' •' : ''}
-        </summary>
-        <ul className="ad-refs">
-          {attached.map((idea) => (
-            <li key={idea.id}>
-              <details>
-                <summary>{idea.text.split('\n')[0]}</summary>
-                <p>{idea.text}</p>
-              </details>
-              <span className="ad-ref-actions">
-                <a
-                  href={`/admin/ideas/${idea.id}`}
-                  target="_blank"
-                  rel="noreferrer"
+          <fieldset className="ad-panel ad-shared">
+            <legend>
+              共享信息{dirty.shared ? ' •' : ''}
+              {dirty.shared ? (
+                <span className="ad-sr"> 有未保存修改</span>
+              ) : null}
+            </legend>
+            <label className="ad-field">
+              <span>分类（必填）</span>
+              <span className="ad-inline">
+                <select
+                  id="field-category"
+                  className="ui-input"
+                  value={shared.category}
+                  onChange={(event) =>
+                    setShared({ ...shared, category: event.target.value })
+                  }
+                  aria-invalid={Boolean(fieldErrors.category)}
                 >
-                  打开 ↗
-                </a>
+                  <option value="">请选择</option>
+                  {view.categories.map((category) => (
+                    <option key={category.slug} value={category.slug}>
+                      {category.zh}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   className="ui-button"
-                  onClick={() =>
-                    setIdeaIds(ideaIds.filter((id) => id !== idea.id))
-                  }
+                  onClick={() => setNewCategory(true)}
                 >
-                  移除
+                  新建分类
                 </button>
               </span>
-            </li>
-          ))}
-        </ul>
-        {available.length > 0 ? (
-          <AddIdea
-            ideas={available}
-            onAdd={(id) => setIdeaIds([...ideaIds, id])}
-          />
-        ) : (
-          <p className="ad-muted">没有可添加的 Idea。</p>
-        )}
-      </details>
+              {fieldErrors.category ? (
+                <small className="ad-field-error">{fieldErrors.category}</small>
+              ) : null}
+            </label>
+            <div
+              id="field-tags"
+              tabIndex={-1}
+              className="ad-tags"
+              role="group"
+              aria-label="标签"
+            >
+              <span>标签</span>
+              {view.tags.map((tag) => (
+                <label key={tag.slug}>
+                  <input
+                    type="checkbox"
+                    checked={shared.tags.includes(tag.slug)}
+                    onChange={(event) =>
+                      setShared({
+                        ...shared,
+                        tags: event.target.checked
+                          ? [...shared.tags, tag.slug]
+                          : shared.tags.filter((item) => item !== tag.slug),
+                      })
+                    }
+                  />{' '}
+                  {tag.zh}
+                </label>
+              ))}
+              {fieldErrors.tags ? (
+                <small className="ad-field-error">{fieldErrors.tags}</small>
+              ) : null}
+            </div>
+            <label className="ad-field">
+              <span>slug</span>
+              <input
+                id="field-slug"
+                className="ui-input"
+                value={shared.slug}
+                readOnly={view.slugLocked}
+                onChange={(event) =>
+                  setShared({ ...shared, slug: event.target.value })
+                }
+                aria-invalid={Boolean(fieldErrors.slug)}
+              />
+              <small className="ad-muted">
+                {view.slugLocked
+                  ? '已发布后锁定'
+                  : '小写字母、数字和连字符；发布前必填'}
+              </small>
+              {fieldErrors.slug ? (
+                <small className="ad-field-error">{fieldErrors.slug}</small>
+              ) : null}
+            </label>
+          </fieldset>
+
+          <section
+            className="ad-panel ad-references"
+            aria-labelledby="panel-refs"
+          >
+            <h2 id="panel-refs">
+              参考资料（Idea · {attached.length}）{dirty.refs ? ' •' : ''}
+            </h2>
+            {attached.length === 0 ? (
+              <p className="ad-muted">还没有关联 Idea。</p>
+            ) : (
+              <ul className="ad-refs">
+                {attached.map((idea) => (
+                  <li key={idea.id}>
+                    <details>
+                      <summary>{idea.text.split('\n')[0]}</summary>
+                      <p>{idea.text}</p>
+                    </details>
+                    <span className="ad-ref-actions">
+                      <a
+                        href={`/admin/ideas/${idea.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        打开 ↗
+                      </a>
+                      <button
+                        type="button"
+                        className="ad-link-button ad-danger-text"
+                        onClick={() =>
+                          setIdeaIds(ideaIds.filter((id) => id !== idea.id))
+                        }
+                      >
+                        移除
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {available.length > 0 ? (
+              <AddIdea
+                ideas={available}
+                onAdd={(id) => setIdeaIds([...ideaIds, id])}
+              />
+            ) : (
+              <p className="ad-muted">没有可添加的 Idea。</p>
+            )}
+          </section>
+        </div>
+      </div>
 
       {newCategory ? (
         <CategoryDialog
@@ -533,6 +637,7 @@ export function ArticleEditor({
           }}
         />
       ) : null}
+      {leaveDialog}
     </section>
   )
 }
@@ -625,8 +730,6 @@ function CategoryDialog({
 }) {
   const [entry, setEntry] = useState({ zh: '', en: '', slug: '' })
   const [errors, setErrors] = useState<string[]>([])
-  const first = useRef<HTMLInputElement>(null)
-  useEffect(() => first.current?.focus(), [])
   async function create() {
     try {
       const result = await saveTaxonomyEntry({
@@ -642,59 +745,18 @@ function CategoryDialog({
     }
   }
   return (
-    <div className="ad-dialog-backdrop">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-category"
-        className="ad-dialog"
-      >
-        <h2 id="new-category">新建分类</h2>
-        <label>
-          <span>中文名</span>
-          <input
-            ref={first}
-            className="ui-input"
-            value={entry.zh}
-            onChange={(event) => setEntry({ ...entry, zh: event.target.value })}
-          />
-        </label>
-        <label>
-          <span>英文名</span>
-          <input
-            className="ui-input"
-            value={entry.en}
-            onChange={(event) => setEntry({ ...entry, en: event.target.value })}
-          />
-        </label>
-        <label>
-          <span>slug</span>
-          <input
-            className="ui-input"
-            value={entry.slug}
-            onChange={(event) =>
-              setEntry({ ...entry, slug: event.target.value })
-            }
-          />
-        </label>
-        {errors.length > 0 ? (
-          <p role="alert" className="ad-feedback ad-error">
-            {errors.join('；')}
-          </p>
-        ) : null}
-        <div className="ad-buttons">
-          <button
-            type="button"
-            className="ui-button ad-primary"
-            onClick={() => void create()}
-          >
-            创建并选中
-          </button>
-          <button type="button" className="ui-button" onClick={onClose}>
-            取消
-          </button>
-        </div>
-      </div>
-    </div>
+    <FormDialog
+      title="新建分类"
+      submit="创建并选中"
+      onSubmit={() => void create()}
+      onClose={onClose}
+    >
+      <TaxonomyFields entry={entry} setEntry={setEntry} />
+      {errors.length > 0 ? (
+        <p role="alert" className="ad-feedback ad-error">
+          {errors.join('；')}
+        </p>
+      ) : null}
+    </FormDialog>
   )
 }

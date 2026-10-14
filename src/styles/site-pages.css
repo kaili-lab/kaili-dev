@@ -33,11 +33,6 @@
 .k2-language button:hover {
   color: var(--cinnabar);
 }
-.k2-footer-inner .k2-pending-link {
-  width: auto;
-  margin-left: 0;
-  font-size: inherit;
-}
 .site-not-found {
   margin: 24px 0 0;
 }

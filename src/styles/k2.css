@@ -93,10 +93,6 @@
   font-size: 0.84rem;
   color: var(--mute);
 }
-.k2-footer-inner span {
-  margin-left: auto;
-  font-size: 0.76rem;
-}
 .k2-section-title {
   display: flex;
   align-items: baseline;
@@ -1037,10 +1033,6 @@ a.k2-pill:hover {
   .k2-footer-inner {
     flex-wrap: wrap;
     row-gap: 6px;
-  }
-  .k2-footer-inner span {
-    width: 100%;
-    margin-left: 0;
   }
   .k2-hero {
     gap: 32px;

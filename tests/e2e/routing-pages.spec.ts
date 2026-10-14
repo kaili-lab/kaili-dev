@@ -139,19 +139,25 @@ async function openPage(page: Page, path: string, reload = false) {
 }
 
 async function switchLanguage(page: Page, name: 'EN' | '中', path: string) {
-  const [response] = await Promise.all([
-    page.waitForResponse(
-      (response) =>
-        response.url() === `${baseURL}${path}` &&
-        response.request().isNavigationRequest() &&
-        response.request().frame() === page.mainFrame(),
-    ),
-    page.getByRole('button', { name, exact: true }).click(),
+  // D-165: the switch is client-side, so check the target directly as well:
+  // it must be a real page (200), reached without a server redirect.
+  const response = await page.request.get(path, { maxRedirects: 0 })
+  expect(response.status()).toBe(200)
+  expect(response.headers().location).toBeUndefined()
+  // The click itself stays in the same document (no reload).
+  await page.evaluate(() => {
+    ;(window as Window & { __sameDocument?: boolean }).__sameDocument = true
+  })
+  await Promise.all([
+    page.waitForURL(`${baseURL}${path}`),
+    page.getByRole('link', { name, exact: true }).click(),
   ])
-  expect(response?.status()).toBe(200)
-  expect(response?.request().redirectedFrom()).toBeNull()
-  expect(response?.headers().location).toBeUndefined()
   await expect(page).toHaveURL(`${baseURL}${path}`)
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __sameDocument?: boolean }).__sameDocument,
+    ),
+  ).toBe(true)
 }
 
 async function expectList(

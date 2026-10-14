@@ -33,4 +33,6 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 
 2026-10-14 · 执行改由 Claude、复核改由 GPT-6.1 Sol（D-150）。实施计划中可由执行者完成的任务已全部完成并经复核：T3.4 OG 图、T3.5 首屏性能（D-152 / D-157）、P4 文章列表（D-153 / D-154）、T5.1 ~ T5.4 后台（D-155 ~ D-160）、T6.1 网站地图及保存发布联验（含 R-SEO-04/05）。门槛见 `docs/notes/2026-10-14-gates-output-11.txt`：check 412/412、build、dry-run、生产 Playwright 122/122、后台 Playwright（`pnpm test:admin`，开发服务器）31/31。
 
+之后按 Kai Li 试用原型的决定完成 T5.5：后台改为传统布局（D-161 ~ D-163），GPT 第 2 轮复核通过；门槛见 `docs/notes/2026-10-14-gates-output-13.txt`：check 431/431、生产 Playwright 122/122、后台 Playwright 36/36。随后完成 T5.6（D-164，Idea 列表单行与详情页），GPT 第 3 轮复核通过；随后完成 T6.2（D-165，公开站站内客户端跳转，消除切换时的字体抖动），GPT 第 3 轮复核通过；最新门槛见 `docs/notes/2026-10-14-gates-output-19.txt`：check 447/447、生产 Playwright 125/125、后台 Playwright 39/39。
+
 仍需 Kai Li：全站视觉基准（P2 / P3 检查点、T3.3 人工验收；HTML 参照稿在此之前保留）；X、LinkedIn 真实地址（T3.3）；T2.5 留待统一修复的 UI 差异。原型之后的 GitHub 登录、D1、R2 与部署尚未拆分任务；OG 生成的 CPU 额度与缓存见 todo。不宣告 v1 完成。
