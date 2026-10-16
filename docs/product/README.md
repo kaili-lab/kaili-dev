@@ -35,4 +35,6 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 
 之后按 Kai Li 试用原型的决定完成 T5.5：后台改为传统布局（D-161 ~ D-163），GPT 第 2 轮复核通过；门槛见 `docs/notes/2026-10-14-gates-output-13.txt`：check 431/431、生产 Playwright 122/122、后台 Playwright 36/36。随后完成 T5.6（D-164，Idea 列表单行与详情页），GPT 第 3 轮复核通过；随后完成 T6.2（D-165，公开站站内客户端跳转，消除切换时的字体抖动），GPT 第 3 轮复核通过；最新门槛见 `docs/notes/2026-10-14-gates-output-19.txt`：check 447/447、生产 Playwright 125/125、后台 Playwright 39/39。
 
+同日把 TanStack Start 从 RC 钉版升到稳定版（D-166）：`@tanstack/react-start` 1.169.1、`@tanstack/react-router` 1.170.44。GPT-6.1 Sol 只读复核为有条件通过。审计后改了 architecture-notes 里「npm latest 为 1.169.1」：复核时 latest 已是 1.169.2（仍依赖 router 1.170.44，只有依赖提升），本次不追。门槛见 `docs/notes/2026-10-14-start-1.169-gates.txt`：check 447/447、build、dry-run（6144.60 KiB / gzip 1674.82 KiB）、生产 Playwright 125/125、后台 Playwright 39/39。
+
 仍需 Kai Li：全站视觉基准（P2 / P3 检查点、T3.3 人工验收；HTML 参照稿在此之前保留）；X、LinkedIn 真实地址（T3.3）；T2.5 留待统一修复的 UI 差异。原型之后的 GitHub 登录、D1、R2 与部署尚未拆分任务；OG 生成的 CPU 额度与缓存见 todo。不宣告 v1 完成。

@@ -14,7 +14,7 @@
 - 公开文章页使用运行时 SSR 返回完整 HTML，以满足基础 SEO；首期不采用 SSG 和发布后重新构建流程。
 - 这些结论记录在 D-023。
 - 前端与工具链（2026-10-12）：Tailwind v4、shadcn/ui（Base UI）、React Hook Form + Zod 4、unified + Shiki、CodeMirror 6、ESLint + Prettier、Vitest + Playwright，数据先用假数据、之后 Drizzle + D1。见 D-126；工程约束见 D-127。
-- 已核对的版本事实（2026-10-12）：TanStack Start 官方文档仍标注 RC，npm `@tanstack/react-start` 1.168.61；Cloudflare 有官方 TanStack Start 指南；shadcn/ui 自 2026-07 起默认 Base UI；`eslint-plugin-better-tailwindcss` 4.9 支持 Tailwind v4。
+- 已核对的版本事实（2026-10-14）：TanStack Start 从 1.169 起为稳定版（官方称 `@tanstack/react-start` 1.169 是第一个稳定版，版本号没有重置成 1.0.0）。本仓库钉 `@tanstack/react-start` 1.169.1、`@tanstack/react-router` 1.170.44。复核时 npm `latest` 已是 1.169.2（2026-10-14T14:52Z 发布，仍精确依赖 react-router 1.170.44，release note 只有依赖提升），本次不追这个 patch。2026-10-12 核对时官方文档仍标 Release Candidate，npm 为 1.168.61。Cloudflare 有官方 TanStack Start 指南；shadcn/ui 自 2026-07 起默认 Base UI；`eslint-plugin-better-tailwindcss` 4.9 支持 Tailwind v4。见 D-166。
 - 基础 SEO 与自动网站地图按 D-082 实现；具体框架接入和现有 Google 平台配置在上线前核对。仅使用公开内容，保持 D-034 的保存与发布边界。
 - 封面图和 OG 分享预览按 D-083 / D-084 实现；封面图由 AI 按用户操作生成，OG 图由应用根据已发布文章信息生成，不在每次分享时调用 AI。具体任务卡另行确定。
 
