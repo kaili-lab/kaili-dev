@@ -31,7 +31,7 @@
   cursor: pointer;
 }
 .k2-language button:hover {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .site-not-found {
   margin: 24px 0 0;
@@ -87,7 +87,7 @@
   color: var(--mute);
 }
 .site-writing-filter a:hover {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .site-writing-filter a.is-current {
   border-bottom-color: var(--ink);
@@ -113,7 +113,7 @@
   color: var(--mute);
 }
 .site-writing-empty a:hover {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 @media (max-width: 640px) {
   .site-writing-filter {

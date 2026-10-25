@@ -80,6 +80,7 @@ const colors = {
   mute: token('--mute'),
   line: token('--line'),
   cinnabar: token('--cinnabar'),
+  indigo: token('--indigo'),
   cover: token('--cover'),
   coverInk: token('--cover-ink'),
   sealInk: token('--seal-ink'),
@@ -250,7 +251,7 @@ function cardTree(
               lineHeight: 1,
             },
             [
-              node('span', { color: colors.cinnabar }, input.category),
+              node('span', { color: colors.indigo }, input.category),
               node('span', {}, input.publishedAt),
             ],
           ),

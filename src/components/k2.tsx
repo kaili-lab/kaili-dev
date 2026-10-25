@@ -2,6 +2,7 @@ import { useRouter } from '@tanstack/react-router'
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from 'react'
 
 import { isClientPageHref } from '#/features/routing'
+import { PaletteSwitcher } from '#/components/palette-switcher'
 import { ThemeSwitcher } from '#/components/theme-switcher'
 
 type Lang = 'zh' | 'en'
@@ -111,6 +112,7 @@ export function K2Header({
           )}
         </span>
         <ThemeSwitcher language={language} />
+        {import.meta.env.DEV ? <PaletteSwitcher language={language} /> : null}
       </div>
     </header>
   )

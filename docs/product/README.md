@@ -37,4 +37,10 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 
 同日把 TanStack Start 从 RC 钉版升到稳定版（D-166）：`@tanstack/react-start` 1.169.1、`@tanstack/react-router` 1.170.44。GPT-6.1 Sol 只读复核为有条件通过。审计后改了 architecture-notes 里「npm latest 为 1.169.1」：复核时 latest 已是 1.169.2（仍依赖 router 1.170.44，只有依赖提升），本次不追。门槛见 `docs/notes/2026-10-14-start-1.169-gates.txt`：check 447/447、build、dry-run（6144.60 KiB / gzip 1674.82 KiB）、生产 Playwright 125/125、后台 Playwright 39/39。
 
+2026-10-25 · 公开站默认配色改为暖白纸色（D-169，supersedes D-168 冷白试验）：`tokens.css` 浅深两套换为暖白 / 暖近黑，深色面板抬高、深色黛蓝改钢青，文章表头线改次墨；旧冷色留在开发环境切换器里对照。`design.md` §2 与 `audit-tokens` 同步，OG 黄金哈希更新。Claude 规格 + Gemini 3.8 Flash 子代理执行；check 452/452、build、dry-run 通过（`docs/notes/2026-10-25-T2.7-gates.txt`）；GPT-6.1 Sol 第 1 轮有条件通过，整改（文档术语、D-169 措辞、进度记录、配色覆盖测试）后第 2 轮通过，唯一剩余项是本句的测试数量，已同步。
+
+2026-10-25 · 提交前实际浏览器检查发现开发环境主题脚本与配色脚本直接拼接时报 `TypeError`，已用语句分隔符修复；新增开发环境刷新后配色恢复回归。修复后 check 452/452、build、dry-run、生产 Playwright 125/125、后台 Playwright 40/40（含新增用例）通过；生产预览在桌面 / 手机及浅 / 深模式保持暖白，且不显示配色切换器。只冻结 D-169 配色，不视作 P2 / P3 全站视觉基准批准。
+
+本轮新增脚本修复及开发配色回归已交 GPT-6.1 Sol 独立只读复核；除实施计划状态回写外无阻塞，状态已同步。D-169 配色可以提交，全站视觉验收仍未完成。
+
 仍需 Kai Li：全站视觉基准（P2 / P3 检查点、T3.3 人工验收；HTML 参照稿在此之前保留）；X、LinkedIn 真实地址（T3.3）；T2.5 留待统一修复的 UI 差异。原型之后的 GitHub 登录、D1、R2 与部署尚未拆分任务；OG 生成的 CPU 额度与缓存见 todo。不宣告 v1 完成。

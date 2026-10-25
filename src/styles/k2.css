@@ -8,10 +8,10 @@
   transition: color 0.15s;
 }
 .k2-wrap a:hover {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-wrap :focus-visible {
-  outline: 2px solid var(--cinnabar);
+  outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
 .k2-header {
@@ -81,6 +81,18 @@
 .k2-header .theme-switcher button:hover {
   color: var(--ink);
 }
+.k2-header .palette-switcher {
+  display: flex;
+  gap: 6px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+.k2-header .palette-switcher button:hover {
+  color: var(--ink);
+}
 .k2-footer .k2-wrap {
   margin-top: 88px;
   padding-bottom: 44px;
@@ -123,11 +135,11 @@
   color: var(--mute);
 }
 .k2-pill.is-active {
-  border-color: var(--cinnabar);
-  color: var(--cinnabar);
+  border-color: var(--indigo);
+  color: var(--indigo);
 }
 a.k2-pill:hover {
-  border-color: var(--cinnabar);
+  border-color: var(--indigo);
 }
 .k2-text-cover {
   position: relative;
@@ -180,7 +192,7 @@ a.k2-pill:hover {
 .k2-hero em {
   position: relative;
   font-style: normal;
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-hero em::after {
   content: '';
@@ -190,7 +202,7 @@ a.k2-pill:hover {
   bottom: -0.08em;
   height: 0.09em;
   border-radius: 2px;
-  background: var(--cinnabar);
+  background: var(--indigo);
   opacity: 0.35;
 }
 .k2-introduction {
@@ -243,7 +255,7 @@ a.k2-pill:hover {
   white-space: nowrap;
 }
 .k2-category {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-post > a {
   display: grid;
@@ -271,7 +283,7 @@ a.k2-pill:hover {
   margin: 4px 0 0;
 }
 .k2-post a:hover h3 {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-feature {
   display: grid;
@@ -309,7 +321,7 @@ a.k2-pill:hover {
   left: 24px;
   width: 48px;
   height: 3px;
-  background: var(--cinnabar);
+  background: var(--indigo);
 }
 .k2-now-head {
   display: flex;
@@ -348,7 +360,7 @@ a.k2-pill:hover {
   font-family: var(--title);
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-now li small {
   margin-left: 6px;
@@ -566,7 +578,7 @@ a.k2-pill:hover {
   font-family: var(--latin);
   font-size: 4.6rem;
   line-height: 1;
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .k2-quote blockquote {
   margin: 0;
@@ -668,7 +680,7 @@ a.k2-pill:hover {
   text-decoration-color: color-mix(in srgb, var(--indigo) 45%, transparent);
 }
 .prose a:hover {
-  color: var(--cinnabar);
+  color: var(--indigo);
   text-decoration-color: currentColor;
 }
 .prose ul,
@@ -777,7 +789,7 @@ a.k2-pill:hover {
 }
 .prose th {
   padding: 8px 16px 8px 0;
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink-2);
   text-align: left;
   font-weight: 600;
   white-space: nowrap;
@@ -825,7 +837,7 @@ a.k2-pill:hover {
   color: var(--ink);
 }
 .k2-toc a[aria-current='location'] {
-  border-left-color: var(--cinnabar);
+  border-left-color: var(--indigo);
   color: var(--ink);
 }
 .k2-toc-mobile {
@@ -873,7 +885,7 @@ a.k2-pill:hover {
   color: var(--ink);
 }
 .k2-article-nav a:hover b {
-  color: var(--cinnabar);
+  color: var(--indigo);
 }
 .ui-button,
 .ui-input {
@@ -1026,6 +1038,13 @@ a.k2-pill:hover {
   .k2-header .theme-switcher {
     margin-left: 12px;
     padding-left: 12px;
+  }
+  .k2-header .palette-switcher {
+    order: 2;
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
   }
   .k2-footer .k2-wrap {
     margin-top: 60px;

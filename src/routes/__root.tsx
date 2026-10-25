@@ -7,6 +7,7 @@ import {
 
 import appCss from '../styles.css?url'
 import fontsCss from '../styles/fonts.css?url'
+import { paletteBootstrap } from '#/lib/palette-store'
 import { themeBootstrap } from '#/lib/theme-store'
 import { PublicNotFound } from '#/components/public-site'
 
@@ -45,7 +46,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang={language} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: import.meta.env.DEV
+              ? `${themeBootstrap};${paletteBootstrap}`
+              : themeBootstrap,
+          }}
+        />
         <link rel="stylesheet" href={appCss} />
         <script
           dangerouslySetInnerHTML={{ __html: fontsActivation(fontsCss) }}

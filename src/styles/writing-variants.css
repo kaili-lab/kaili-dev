@@ -36,7 +36,7 @@
     color: var(--mute);
   }
   .wv-links .wv-row a:hover {
-    color: var(--cinnabar);
+    color: var(--indigo);
   }
   .wv-links .wv-row a.is-current {
     border-bottom-color: var(--ink);
@@ -122,7 +122,7 @@
     color: var(--mute);
   }
   .wv-empty a:hover {
-    color: var(--cinnabar);
+    color: var(--indigo);
   }
   .wv-empty-rule {
     padding: 32px 0;

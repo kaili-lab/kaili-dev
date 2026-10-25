@@ -58,7 +58,7 @@
   }
 
   .catalogue-texture-option[aria-pressed='true'] {
-    border: 2px solid var(--cinnabar);
+    border: 2px solid var(--indigo);
   }
 
   .catalogue-texture-option > span:last-child {
@@ -95,7 +95,7 @@
   }
 
   [data-design-catalogue] :focus-visible {
-    outline: 2px solid var(--cinnabar);
+    outline: 2px solid var(--indigo);
     outline-offset: 2px;
   }
   .catalogue-intro {

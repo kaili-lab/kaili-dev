@@ -32,7 +32,8 @@ body {
   }
 }
 
-[data-theme-switcher] button {
+[data-theme-switcher] button,
+[data-palette-switcher] button {
   border: 0;
   padding: 0;
   color: var(--mute);
@@ -41,13 +42,15 @@ body {
   cursor: pointer;
 }
 
-[data-theme-switcher] button[aria-pressed='true'] {
+[data-theme-switcher] button[aria-pressed='true'],
+[data-palette-switcher] button[aria-pressed='true'] {
   color: var(--ink);
   font-weight: 600;
 }
 
-[data-theme-switcher] button:focus-visible {
-  outline: 2px solid var(--cinnabar);
+[data-theme-switcher] button:focus-visible,
+[data-palette-switcher] button:focus-visible {
+  outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
 

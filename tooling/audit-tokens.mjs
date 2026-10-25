@@ -79,7 +79,7 @@ const documentedContrasts = colorSection
   .split('**对比度')[1]
   .split('\n')
   .filter((line) =>
-    /^\| (墨|次墨|黛蓝|赭灰|朱砂|封面文字|摘抄正文|印章文字)/.test(line),
+    /^\| (墨|次墨|黛蓝|暖灰|朱砂|封面文字|摘抄正文|印章文字)/.test(line),
   )
   .flatMap((line) => {
     const [, , lightCell, darkCell] = line.split('|').map((cell) => cell.trim())
