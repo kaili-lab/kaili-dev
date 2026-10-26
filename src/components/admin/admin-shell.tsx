@@ -72,7 +72,11 @@ export function AdminShell({
           <a href="/zh" target="_blank" rel="noreferrer">
             查看网站 ↗
           </a>
-          <span>{user}（开发环境假登录）</span>
+          <form method="post" action="/auth/logout">
+            <button type="submit" className="ad-logout">
+              {user} · 退出登录
+            </button>
+          </form>
         </span>
       </aside>
       <main className="ad-main">{children}</main>

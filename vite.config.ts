@@ -29,10 +29,10 @@ const config = defineConfig(({ command }) => {
         router: {
           // A running dev server must not overwrite the production route tree.
           generatedRouteTree: routeTreePath,
-          // Exclude development fixtures from both production route graphs.
+          // Keep development-only fixtures out of both production route graphs.
           routeFileIgnorePattern:
             command === 'build'
-              ? String.raw`^(\[_\](design\.tsx|og-smoke\.ts|writing-variants\.tsx|admin-variants\.tsx|test-reset\.ts)|admin(\.tsx)?)$`
+              ? String.raw`^\[_\](design\.tsx|og-smoke\.ts|writing-variants\.tsx|admin-variants\.tsx|test-reset\.ts)$`
               : undefined,
         },
       }),

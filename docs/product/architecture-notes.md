@@ -172,3 +172,14 @@ D-045 至 D-048 已确定文章编辑器基本方向和图片生命周期边界�
 - Workers 只接受预编译 WASM：<https://developers.cloudflare.com/workers/runtime-apis/webassembly/>；当前额度和 CPU / 内存 / 包体限制：<https://developers.cloudflare.com/workers/platform/limits/>。
 - Browser Run 的 HTML / URL 截图与等待策略：<https://developers.cloudflare.com/browser-run/quick-actions/screenshot-endpoint/>；成本：<https://developers.cloudflare.com/browser-run/pricing/>。
 
+**现行结论（2026-10-26，D-175）：** 上述调研、实现结果和 179ms / 2ms 观测完整保留，作为为什么不继续运行时生成的依据。低访问量个人站不值得只为分享图片购买 Workers Paid；Cache API 只能消除重复生成，不能消除每个新公开版本第一次执行 Satori + resvg 的 CPU 风险。因此部署前删除动态 `/og/...`、两项渲染依赖、WASM、专用字体和缓存链路，改成静态站点分享图；文章自己的 Open Graph 标题、摘要、正式地址和语言继续由 SSR 输出。此后无需 OG 线上 CPU 测量。
+
+## T7 · 生产数据、身份、媒体与 OG 缓存（2026-10-26）
+
+- 数据层已从进程内假仓储切到请求绑定的 D1，公开页、后台和 sitemap 共用 `src/server/data`。生产代码不执行测试 seed；远端空库迁移须在部署授权后执行。
+- D1 迁移保留文章、双语版本、Idea 关联和媒体引用。文章写入使用单调 `revision` 与一次性 `write_token`：同一修订只有一个批处理能更新父行及全部子表，晚到写入返回 `stale-write`，不覆盖较新的窗口。分类标签的存在性和“被引用时不可删除”另由数据库 trigger 保底，避免应用层检查与写入之间的竞态。
+- GitHub OAuth 只申请 `read:user`，state 由 HMAC 签名且一次性使用；授权按 GitHub 数字用户 ID 允许名单判断。session 只存随机 ID 的 SHA-256 摘要，Cookie 为 HttpOnly / SameSite=Lax / Secure（HTTPS）。退出登录要求精确同源 `Origin`。
+- 图片先在 D1 登记再写 R2，因此 R2 结果不明确时仍有可清理记录。D1 保存四种引用槽位（中/英 × 草稿/公开）；匿名请求只有存在公开引用时可读，后台 session 可读草稿引用。清理任务先在 D1 原子标记墓碑，再删 R2；墓碑阻止新引用，R2 删除失败保留记录供下次重试；`unreferenced_since <= now - 7 days` 才进入清理，每次最多 100 个。
+- D-175 删除逐文章动态 OG PNG 与 Cache API 生成链路，保留 SSR 输出的 Open Graph 文本元数据并共用静态站点分享图；此前的版本化缓存、错误版本 404 以及本地 179ms / 2ms 观测保留在 T3.4 历史记录中，不再构成部署前置。
+- D-175 切换后 dry-run 识别 DB、MEDIA、ASSETS 三个 binding，总上传 4230.43 KiB / gzip 882.12 KiB。远端空 D1 迁移与 `workers.dev` 部署已获 Kai Li 授权；`kaili.dev` 域名、DNS / route 与生产 OAuth 回调切换未获授权，不在本轮执行。T7.2–T7.5 的历史验收见 `docs/notes/2026-10-26-T7-gates.md`。
+

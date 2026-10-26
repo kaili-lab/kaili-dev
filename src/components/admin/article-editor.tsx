@@ -37,6 +37,8 @@ const errorText: Record<CommitError, string> = {
   'slug-locked': '已发布后 slug 不能修改',
   'category-unknown': '分类不存在，请重新选择',
   'tag-unknown': '标签不存在，请刷新后重新选择',
+  'image-unavailable': '正文包含不存在或已删除的上传图片',
+  'stale-write': '文章已在其他页面修改；请刷新后合并你的编辑内容',
 }
 const errorField: Record<CommitError, string> = {
   'category-required': 'category',
@@ -49,6 +51,8 @@ const errorField: Record<CommitError, string> = {
   'slug-locked': 'slug',
   'category-unknown': 'category',
   'tag-unknown': 'tags',
+  'image-unavailable': 'body',
+  'stale-write': 'form',
 }
 
 const contentOf = (view: EditorView, language: Language): Content => {
@@ -187,6 +191,7 @@ export function ArticleEditor({
     try {
       const request = {
         id: view.id,
+        revision: view.revision,
         ideaIds: submitted.ideaIds,
         input: {
           language: submitted.language,
@@ -415,6 +420,7 @@ export function ArticleEditor({
                   value={content.body}
                   onChange={(value) => setField('body', value)}
                   split
+                  allowImages
                 />
               </div>
             </div>

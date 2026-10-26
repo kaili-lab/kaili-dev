@@ -404,6 +404,12 @@
   .ad-codemirror {
     min-width: 0;
   }
+  .ad-media-upload {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
   .ad-preview {
     min-width: 0;
     min-height: 360px;
@@ -798,5 +804,41 @@
     .ad-list-scroll {
       border-top: 0;
     }
+  }
+  .ad-auth-page {
+    display: grid;
+    align-content: center;
+    gap: 14px;
+    width: min(440px, 100%);
+    min-height: 100vh;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .ad-auth-page h1,
+  .ad-auth-page p {
+    margin: 0;
+  }
+
+  .ad-auth-button {
+    justify-self: start;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .ad-logout {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--mute);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ad-logout:hover {
+    color: var(--ink);
   }
 }

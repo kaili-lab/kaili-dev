@@ -25,13 +25,17 @@ import {
   type ValidationError,
 } from '#/features/article-versions'
 import { referencedImages } from '#/features/markdown-images'
-import { requireAdmin } from '#/server/admin-auth'
+import { requireAdminFunctionSession } from '#/lib/require-admin-session'
+import { runtimeDatabase, type D1Database } from '#/server/data/db'
 import {
+  ArticleWriteConflictError,
   getStoredArticle,
   listStoredArticles,
   newArticleId,
   putStoredArticle,
+  type StoredArticle,
 } from '#/server/data/articles'
+import { missingMediaObjects } from '#/server/data/media'
 import {
   deleteStoredIdea,
   getStoredIdea,
@@ -63,6 +67,11 @@ const strings = (value: unknown, name: string) => {
     throw new Error(`Invalid ${name}`)
   return value as string[]
 }
+const revision = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0)
+    throw new Error('Invalid revision')
+  return value
+}
 const language = (value: unknown): Language => {
   if (value !== 'zh' && value !== 'en') throw new Error('Invalid language')
   return value
@@ -90,7 +99,12 @@ function listQuery(input: unknown) {
   }
 }
 
-type EditRequest = { id: string | null; input: EditInput; ideaIds: string[] }
+type EditRequest = {
+  id: string | null
+  revision: number
+  input: EditInput
+  ideaIds: string[]
+}
 
 function editRequest(input: unknown): EditRequest {
   const value = object(input)
@@ -99,6 +113,7 @@ function editRequest(input: unknown): EditRequest {
   const body = text(content.body, 'body')
   return {
     id: value.id === null ? null : text(value.id, 'id'),
+    revision: revision(value.revision),
     ideaIds: strings(value.ideaIds ?? [], 'ideaIds'),
     input: {
       language: language(edit.language),
@@ -121,42 +136,58 @@ function editRequest(input: unknown): EditRequest {
 const label = (entries: TaxonomyEntry[], slug?: string) =>
   entries.find((entry) => entry.slug === slug)?.zh ?? slug
 
-function editorView(id: string | null, article: Article, ideaIds: string[]) {
-  const ideas = sortIdeas(listStoredIdeas())
+async function editorView(
+  database: D1Database,
+  id: string | null,
+  article: Article,
+  ideaIds: string[],
+  revision: number,
+) {
+  const [ideas, categories, tags] = await Promise.all([
+    listStoredIdeas(database),
+    listTaxonomy(database, 'categories'),
+    listTaxonomy(database, 'tags'),
+  ])
+  const sortedIdeas = sortIdeas(ideas)
   return {
     id,
+    revision,
     article,
     states: {
       zh: versionState(article, 'zh'),
       en: versionState(article, 'en'),
     },
     slugLocked: Boolean(article.zh.published || article.en.published),
-    categories: listTaxonomy('categories'),
-    tags: listTaxonomy('tags'),
+    categories,
+    tags,
     references: ideaIds
-      .map((ideaId) => ideas.find((idea) => idea.id === ideaId))
+      .map((ideaId) => sortedIdeas.find((idea) => idea.id === ideaId))
       .filter((idea) => idea !== undefined),
-    ideas,
+    ideas: sortedIdeas,
   }
 }
-export type EditorView = ReturnType<typeof editorView>
+export type EditorView = Awaited<ReturnType<typeof editorView>>
 
 const emptyArticle = (): Article => ({ tags: [], zh: {}, en: {} })
-const takenSlugs = (id: string | null) =>
-  new Set(
-    listStoredArticles()
+async function takenSlugs(database: D1Database, id: string | null) {
+  return new Set(
+    (await listStoredArticles(database))
       .filter((record) => record.id !== id && record.article.slug)
       .map((record) => record.article.slug!),
   )
+}
 
 // ---- articles ---------------------------------------------------------------
 
 export const listAdminArticles = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator(listQuery)
-  .handler(({ data }) => {
-    requireAdmin()
-    const categories = listTaxonomy('categories')
-    const records = listStoredArticles()
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const [categories, records] = await Promise.all([
+      listTaxonomy(database, 'categories'),
+      listStoredArticles(database),
+    ])
     const last = new Map(
       records.map((record) => [record.id, record.lastLanguage]),
     )
@@ -175,7 +206,6 @@ export const listAdminArticles = createServerFn({ method: 'GET' })
         ...row,
         slug: records.find((record) => record.id === row.id)?.article.slug,
         categoryName: label(categories, row.category),
-        // Open the language edited last (admin-design-note §2); Chinese if none.
         lastLanguage: last.get(row.id) ?? ('zh' as const),
       })),
       categories,
@@ -183,99 +213,151 @@ export const listAdminArticles = createServerFn({ method: 'GET' })
   })
 
 export const loadAdminArticle = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => ({ id: text(object(input).id, 'id') }))
-  .handler(({ data }) => {
-    requireAdmin()
-    const record = getStoredArticle(data.id)
-    return record ? editorView(record.id, record.article, record.ideaIds) : null
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const record = await getStoredArticle(database, data.id)
+    return record
+      ? editorView(
+          database,
+          record.id,
+          record.article,
+          record.ideaIds,
+          record.revision,
+        )
+      : null
   })
 
 export const loadNewArticle = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => ({
     ideaId: optionalText(object(input ?? {}).ideaId, 'ideaId') ?? undefined,
   }))
-  .handler(({ data }) => {
-    requireAdmin()
-    // "用它写文章" pre-attaches the Idea (D-103).
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
     const ideaIds =
-      data.ideaId && getStoredIdea(data.ideaId) ? [data.ideaId] : []
-    return editorView(null, emptyArticle(), ideaIds)
+      data.ideaId && (await getStoredIdea(database, data.ideaId))
+        ? [data.ideaId]
+        : []
+    return editorView(database, null, emptyArticle(), ideaIds, 0)
   })
 
 /** Beyond the pure rules: references must name real taxonomy entries. */
-export type CommitError = ValidationError | 'category-unknown' | 'tag-unknown'
+export type CommitError =
+  | ValidationError
+  | 'category-unknown'
+  | 'tag-unknown'
+  | 'image-unavailable'
+  | 'stale-write'
 type EditResult =
   { ok: true; view: EditorView } | { ok: false; errors: CommitError[] }
 
-function commit(
+async function commit(
   operation: 'save' | 'publish',
   request: EditRequest,
-): EditResult {
-  requireAdmin()
-  const existing = request.id ? getStoredArticle(request.id) : undefined
+): Promise<EditResult> {
+  const database = await runtimeDatabase()
+  const existing = request.id
+    ? await getStoredArticle(database, request.id)
+    : undefined
   if (request.id && !existing) throw new Error('Article not found')
-  // A bypassed form must not attach a category or tag that does not exist.
+  if (existing && request.revision !== existing.revision)
+    return { ok: false, errors: ['stale-write'] }
+  const [categories, tags, ideas] = await Promise.all([
+    listTaxonomy(database, 'categories'),
+    listTaxonomy(database, 'tags'),
+    listStoredIdeas(database),
+  ])
   const unknown: CommitError[] = []
-  const { category, tags } = request.input
-  if (
-    category &&
-    !listTaxonomy('categories').some((entry) => entry.slug === category)
-  )
+  const { category } = request.input
+  if (category && !categories.some((entry) => entry.slug === category))
     unknown.push('category-unknown')
-  const tagSlugs = new Set(listTaxonomy('tags').map((entry) => entry.slug))
-  if (tags.some((tag) => !tagSlugs.has(tag))) unknown.push('tag-unknown')
+  const tagSlugs = new Set(tags.map((entry) => entry.slug))
+  if (request.input.tags.some((tag) => !tagSlugs.has(tag)))
+    unknown.push('tag-unknown')
+  if (
+    (await missingMediaObjects(database, request.input.content.images)).length >
+    0
+  )
+    unknown.push('image-unavailable')
   if (unknown.length > 0) return { ok: false, errors: unknown }
   const now = new Date().toISOString()
   const result = (operation === 'save' ? saveArticle : publishArticle)(
     existing?.article ?? emptyArticle(),
     request.input,
-    { now, takenSlugs: takenSlugs(request.id) },
+    { now, takenSlugs: await takenSlugs(database, request.id) },
   )
   if (!result.ok) return result
-  const known = new Set(listStoredIdeas().map((idea) => idea.id))
+  const known = new Set(ideas.map((idea) => idea.id))
   const ideaIds = [...new Set(request.ideaIds)].filter((ideaId) =>
     known.has(ideaId),
   )
   const id = existing?.id ?? newArticleId()
-  putStoredArticle({
-    id,
-    article: result.article,
-    savedAt: now,
-    ideaIds,
-    lastLanguage: request.input.language,
-  })
-  return { ok: true, view: editorView(id, result.article, ideaIds) }
+  let nextRevision: number
+  try {
+    nextRevision = await putStoredArticle(
+      database,
+      {
+        id,
+        article: result.article,
+        savedAt: now,
+        revision: existing?.revision ?? 0,
+        ideaIds,
+        lastLanguage: request.input.language,
+      },
+      existing?.revision,
+    )
+  } catch (error) {
+    if (error instanceof ArticleWriteConflictError)
+      return { ok: false, errors: ['stale-write'] }
+    const slug = result.article.slug
+    if (slug && (await takenSlugs(database, id)).has(slug))
+      return { ok: false, errors: ['slug-taken'] }
+    throw error
+  }
+  return {
+    ok: true,
+    view: await editorView(database, id, result.article, ideaIds, nextRevision),
+  }
 }
 
 export const saveAdminArticle = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator(editRequest)
   .handler(({ data }) => commit('save', data))
 
 export const publishAdminArticle = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator(editRequest)
   .handler(({ data }) => commit('publish', data))
 
 // ---- categories and tags ----------------------------------------------------
 
 export const loadTaxonomy = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator(listQuery)
-  .handler(({ data }) => {
-    requireAdmin()
-    const articles = listStoredArticles().map((record) => record.article)
-    const rows = listTaxonomy(data.tab).map((entry) => ({
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const [articles, entries, categories, tags] = await Promise.all([
+      listStoredArticles(database),
+      listTaxonomy(database, data.tab),
+      listTaxonomy(database, 'categories'),
+      listTaxonomy(database, 'tags'),
+    ])
+    const articleValues = articles.map((record) => record.article)
+    const rows = entries.map((entry) => ({
       ...entry,
-      ...taxonomyUsage(articles, data.tab, entry.slug),
+      ...taxonomyUsage(articleValues, data.tab, entry.slug),
     }))
     return {
       ...paginate(rows, data.page),
-      counts: {
-        categories: listTaxonomy('categories').length,
-        tags: listTaxonomy('tags').length,
-      },
+      counts: { categories: categories.length, tags: tags.length },
     }
   })
 
 export const saveTaxonomyEntry = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => {
     const value = object(input)
     const entry = object(value.entry)
@@ -290,15 +372,19 @@ export const saveTaxonomyEntry = createServerFn({ method: 'POST' })
       },
     }
   })
-  .handler(({ data }) => {
-    requireAdmin()
-    const articles = listStoredArticles().map((record) => record.article)
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const [records, entries] = await Promise.all([
+      listStoredArticles(database),
+      listTaxonomy(database, data.kind),
+    ])
+    const articles = records.map((record) => record.article)
     const locked =
       data.previousSlug !== undefined &&
       taxonomyUsage(articles, data.kind, data.previousSlug).published
     const errors = validateTaxonomyEntry(
       { ...data.entry, zh: data.entry.zh.trim(), en: data.entry.en.trim() },
-      listTaxonomy(data.kind),
+      entries,
       data.previousSlug,
       locked,
     )
@@ -308,49 +394,32 @@ export const saveTaxonomyEntry = createServerFn({ method: 'POST' })
       zh: data.entry.zh.trim(),
       en: data.entry.en.trim(),
     }
-    putTaxonomyEntry(data.kind, entry, data.previousSlug)
-    // An unpublished slug change follows into the articles that use it.
-    if (data.previousSlug && data.previousSlug !== entry.slug)
-      for (const record of listStoredArticles()) {
-        const article = record.article
-        const next =
-          data.kind === 'categories'
-            ? article.category === data.previousSlug
-              ? { ...article, category: entry.slug }
-              : article
-            : {
-                ...article,
-                tags: article.tags.map((tag) =>
-                  tag === data.previousSlug ? entry.slug : tag,
-                ),
-              }
-        if (next !== article) putStoredArticle({ ...record, article: next })
-      }
+    await putTaxonomyEntry(database, data.kind, entry, data.previousSlug)
     return { ok: true as const, entry }
   })
 
 export const removeTaxonomyEntry = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => {
     const value = object(input)
     return { kind: kind(value.kind), slug: text(value.slug, 'slug') }
   })
-  .handler(({ data }) => {
-    requireAdmin()
-    const articles = listStoredArticles().map((record) => record.article)
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const articles = (await listStoredArticles(database)).map(
+      (record) => record.article,
+    )
     const usage = taxonomyUsage(articles, data.kind, data.slug)
     if (usage.references > 0)
       return { ok: false as const, references: usage.references }
-    deleteTaxonomyEntry(data.kind, data.slug)
+    await deleteTaxonomyEntry(database, data.kind, data.slug)
     return { ok: true as const }
   })
 
 // ---- Ideas ----------------------------------------------------------------
 
 /** Articles that list this Idea as a reference (D-163 ② / D-164 ③). */
-function ideaArticles(
-  records: ReturnType<typeof listStoredArticles>,
-  id: string,
-) {
+function ideaArticles(records: StoredArticle[], id: string) {
   return records
     .filter((record) => record.ideaIds.includes(id))
     .map((record) => ({
@@ -361,11 +430,15 @@ function ideaArticles(
 }
 
 export const listIdeas = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator(listQuery)
-  .handler(({ data }) => {
-    requireAdmin()
-    const records = listStoredArticles()
-    const all = sortIdeas(listStoredIdeas())
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const [records, storedIdeas] = await Promise.all([
+      listStoredArticles(database),
+      listStoredIdeas(database),
+    ])
+    const all = sortIdeas(storedIdeas)
     const page = paginate(
       all.filter((idea) => matchesQuery(idea.text, data.q)),
       data.page,
@@ -376,22 +449,24 @@ export const listIdeas = createServerFn({ method: 'GET' })
         ...idea,
         articles: ideaArticles(records, idea.id),
       })),
-      // Every Idea exists, regardless of the search (for the page heading).
       all: all.length,
     }
   })
 
 export const loadIdea = createServerFn({ method: 'GET' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => ({ id: text(object(input).id, 'id') }))
-  .handler(({ data }) => {
-    requireAdmin()
-    const idea = getStoredIdea(data.id)
-    return idea
-      ? { ...idea, articles: ideaArticles(listStoredArticles(), idea.id) }
-      : null
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const [idea, records] = await Promise.all([
+      getStoredIdea(database, data.id),
+      listStoredArticles(database),
+    ])
+    return idea ? { ...idea, articles: ideaArticles(records, idea.id) } : null
   })
 
 export const saveIdea = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => {
     const value = object(input)
     return {
@@ -399,13 +474,14 @@ export const saveIdea = createServerFn({ method: 'POST' })
       text: text(value.text, 'text'),
     }
   })
-  .handler(({ data }) => {
-    requireAdmin()
-    // D-076: blank Ideas never save, whichever way the request arrives.
+  .handler(async ({ data }) => {
     if (isBlank(data.text))
       return { ok: false as const, error: 'text-required' as const }
+    const database = await runtimeDatabase()
     const now = new Date().toISOString()
-    const previous = data.id ? getStoredIdea(data.id) : undefined
+    const previous = data.id
+      ? await getStoredIdea(database, data.id)
+      : undefined
     if (data.id && !previous) throw new Error('Idea not found')
     const idea = {
       id: previous?.id ?? newArticleId(),
@@ -413,31 +489,25 @@ export const saveIdea = createServerFn({ method: 'POST' })
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     }
-    putStoredIdea(idea)
+    await putStoredIdea(database, idea)
     return { ok: true as const, idea }
   })
 
 export const removeIdea = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => ({ id: text(object(input).id, 'id') }))
-  .handler(({ data }) => {
-    requireAdmin()
-    deleteStoredIdea(data.id)
-    // D-068: drop every article reference; articles themselves stay.
-    for (const record of listStoredArticles())
-      if (record.ideaIds.includes(data.id))
-        putStoredArticle({
-          ...record,
-          ideaIds: record.ideaIds.filter((id) => id !== data.id),
-        })
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    await deleteStoredIdea(database, data.id)
     return { ok: true as const }
   })
 
 // ---- editor preview ----------------------------------------------------------
 
 export const previewMarkdown = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => ({ body: text(object(input).body, 'body') }))
   .handler(async ({ data }) => {
-    requireAdmin()
     // Same renderer as the public article page, so the preview matches it.
     const { renderMarkdown } = await import('#/features/markdown')
     return (await renderMarkdown(data.body)).html

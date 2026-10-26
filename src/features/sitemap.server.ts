@@ -1,11 +1,12 @@
 import { renderSitemap, sitemapEntries } from '#/features/sitemap'
 import { publishedPosts } from '#/server/data/posts'
+import { runtimeDatabase } from '#/server/data/db'
 
-export function sitemapResponse(): Response {
-  return new Response(renderSitemap(sitemapEntries(publishedPosts())), {
+export async function sitemapResponse(): Promise<Response> {
+  const posts = await publishedPosts(await runtimeDatabase())
+  return new Response(renderSitemap(sitemapEntries(posts)), {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      // Publishing must show up at once (R-SEO-06); no long cache yet.
       'Cache-Control': 'no-cache',
     },
   })

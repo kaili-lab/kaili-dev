@@ -111,8 +111,11 @@ export function DesignCatalogue({ language }: { language: 'zh' | 'en' }) {
   const links = [
     { label: en ? 'Email' : '邮件', href: 'mailto:hello@kaili.dev' },
     { label: 'GitHub', href: 'https://github.com/kaili-lab' },
-    { label: 'X', href: 'https://x.com' },
-    { label: 'LinkedIn', href: 'https://www.linkedin.com' },
+    { label: 'X', href: 'https://x.com/kaili_dev' },
+    {
+      label: 'LinkedIn',
+      href: 'https://www.linkedin.com/in/kai-li-696024230/',
+    },
   ]
   const tocItems: Array<{ id: string; title: string; level: 2 | 3 }> = [
     {
@@ -154,11 +157,6 @@ export function DesignCatalogue({ language }: { language: 'zh' | 'en' }) {
             {en
               ? 'Default, current and empty examples below; hover links and use Tab to see real focus. Static seal, cover, prose and quotation have no hover/current/focus state.'
               : '下方展示默认、当前与空内容；悬停链接、按 Tab 查看真实焦点。印章、封面、正文和摘抄不适用悬停、当前或焦点状态。'}
-          </p>
-          <p>
-            {en
-              ? 'Footer social links demonstrate layout; X / LinkedIn point to their service homepages, not a claimed personal account.'
-              : '页脚外链仅演示排版；X / LinkedIn 指向服务首页，不声称是个人账号。'}
           </p>
         </div>
 

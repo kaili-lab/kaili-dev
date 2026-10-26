@@ -17,14 +17,7 @@ test('the development catalogue is inaccessible in production', async ({
     '/_admin-variants',
     '/_admin-variants?page=editor',
     '/_writing-variants?variant=pills&state=empty',
-    '/_og-smoke?id=short',
-    // T5.4 / D-132: no admin and no test hook in production builds.
-    '/admin',
-    '/admin/posts',
-    '/admin/posts/new',
-    '/admin/posts/boundary-example',
-    '/admin/ideas',
-    '/admin/taxonomy',
+    // Development fixtures stay absent after production admin is enabled (D-172).
     '/_test-reset',
   ]) {
     const response = await request.get(path)
@@ -32,13 +25,8 @@ test('the development catalogue is inaccessible in production', async ({
     const body = await response.text()
     expect(body, path).not.toContain('data-design-catalogue')
     expect(body, path).not.toContain('K2 - DESIGN SYSTEM')
-    // T4.1b variants and the T3.4 OG fixture route stay out of production.
-    expect(body, path).not.toMatch(
-      /wv-pill|wv-select|X-Og-Font-Size|ad-root|开发环境假登录/,
-    )
-    expect(response.headers()['content-type'] ?? '', path).not.toContain(
-      'image/png',
-    )
+    // T4.1b variants stay out of production.
+    expect(body, path).not.toMatch(/wv-pill|wv-select/)
   }
 
   // T6.1: the sitemap exists and never lists a development-only route.
@@ -56,29 +44,57 @@ test('the test reset hook does not exist in production', async ({
   expect((await request.get('/zh/writing/boundary-example')).status()).toBe(200)
 })
 
-test('admin server functions cannot be called in production', async ({
+test('production admin is public only at login and rejects anonymous writes', async ({
   request,
 }) => {
-  // The id a development build uses for saveAdminArticle; production does
-  // not bundle the admin module at all, so no id may succeed.
-  const id = Buffer.from(
-    JSON.stringify({
-      file: '/src/features/admin.functions.ts?tss-serverfn-split',
-      export: 'saveAdminArticle_createServerFn_handler',
-    }),
-  ).toString('base64url')
-  // Router state embeds a per-request timestamp (u:…); compare without it.
-  const article = async () =>
-    (await (await request.get('/zh/writing/boundary-example')).text()).replace(
-      /u:\d+/g,
-      'u:0',
+  for (const path of [
+    '/admin',
+    '/admin/posts',
+    '/admin/posts/new',
+    '/admin/posts/boundary-example',
+    '/admin/ideas',
+    '/admin/taxonomy',
+  ]) {
+    const response = await request.get(path, { maxRedirects: 0 })
+    expect(response.status(), path).toBe(302)
+    expect(response.headers().location, path).toContain(
+      '/admin/login?returnTo=',
     )
-  const before = await article()
-  const response = await request.post(`/_serverFn/${id}`, {
-    headers: { 'content-type': 'application/json' },
-    data: '{}',
+  }
+
+  for (const path of ['/admin/login', '/admin/access-denied']) {
+    const response = await request.get(path)
+    expect(response.status(), path).toBe(200)
+  }
+
+  const upload = await request.post('/api/media', {
+    multipart: {
+      file: {
+        name: 'anonymous.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from([1]),
+      },
+    },
   })
-  expect(response.status()).not.toBe(200)
-  expect(await response.text()).not.toContain('"ok":true')
-  expect(await article()).toBe(before)
+  expect(upload.status()).toBe(401)
+  expect(await upload.json()).toEqual({ error: 'unauthorized' })
+})
+
+test('logout accepts only exact same-origin POST requests', async ({
+  request,
+}) => {
+  const foreign = await request.post('/auth/logout', {
+    headers: { Origin: 'https://attacker.example' },
+    maxRedirects: 0,
+  })
+  expect(foreign.status()).toBe(403)
+  expect(foreign.headers()['set-cookie']).toBeUndefined()
+
+  const local = await request.post('/auth/logout', {
+    headers: { Origin: 'http://127.0.0.1:4173' },
+    maxRedirects: 0,
+  })
+  expect(local.status()).toBe(303)
+  expect(local.headers().location).toBe('/admin/login')
+  expect(local.headers()['set-cookie']).toContain('Max-Age=0')
 })

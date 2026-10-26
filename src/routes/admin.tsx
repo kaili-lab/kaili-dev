@@ -1,17 +1,15 @@
 import {
   Outlet,
   createFileRoute,
-  notFound,
   useRouterState,
   type ErrorComponentProps,
 } from '@tanstack/react-router'
 
 import adminCss from '../styles/admin.css?url'
 import { AdminShell } from '#/components/admin/admin-shell'
-import { developmentOnly } from '#/lib/development-only'
+import { requireAdminSession } from '#/lib/require-admin-session'
 
-// Development only until the real login lands (D-132). Production builds
-// leave the whole /admin tree out (vite.config.ts) and 404 here as well.
+// Every admin document request is gated by the D1-backed GitHub session.
 export const Route = createFileRoute('/admin')({
   head: () => ({
     meta: [
@@ -20,11 +18,8 @@ export const Route = createFileRoute('/admin')({
     ],
     links: [{ rel: 'stylesheet', href: adminCss }],
   }),
-  server: { middleware: [developmentOnly] },
-  beforeLoad: () => {
-    if (import.meta.env.PROD) throw notFound()
-    return { user: 'Kai Li' }
-  },
+  server: { middleware: [requireAdminSession] },
+  beforeLoad: () => ({ user: 'Kai Li' }),
   component: AdminLayout,
   errorComponent: AdminError,
 })
@@ -50,6 +45,8 @@ function AdminLayout() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
+  if (pathname === '/admin/login' || pathname === '/admin/access-denied')
+    return <Outlet />
   const section = pathname.startsWith('/admin/ideas')
     ? 'ideas'
     : pathname.startsWith('/admin/taxonomy')

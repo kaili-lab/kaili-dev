@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792922036142,
+      "tag": "0000_left_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792968904908,
+      "tag": "0001_nullable_article_slug",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792968922350,
+      "tag": "0002_media_reference_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792970209000,
+      "tag": "0003_live_media_reference",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792972162000,
+      "tag": "0004_concurrency_taxonomy_guards",
+      "breakpoints": true
+    }
+  ]
+}

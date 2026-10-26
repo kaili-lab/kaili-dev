@@ -1,6 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start'
 
 import { getPost } from '#/server/data/posts'
+import { runtimeDatabase } from '#/server/data/db'
 import { resolveLanguage } from '#/features/routing'
 
 function readLanguageCookie(cookie: string | null) {
@@ -10,7 +11,7 @@ function readLanguageCookie(cookie: string | null) {
 
 export const shareRedirect = createMiddleware().server(async ({ request }) => {
   const slug = new URL(request.url).pathname.split('/').at(-1)
-  const post = slug ? getPost(slug) : undefined
+  const post = slug ? await getPost(await runtimeDatabase(), slug) : undefined
   const language = resolveLanguage(
     readLanguageCookie(request.headers.get('cookie')),
     request.headers.get('accept-language'),

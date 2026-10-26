@@ -10,8 +10,7 @@ export default defineConfig({
   timeout: 60_000,
   use: { baseURL: 'http://127.0.0.1:3200', browserName: 'chromium' },
   webServer: {
-    command:
-      'pnpm og:fonts && pnpm exec vite dev --port 3200 --host 127.0.0.1 --strictPort',
+    command: 'pnpm exec vite dev --port 3200 --host 0.0.0.0 --strictPort',
     url: 'http://127.0.0.1:3200/zh',
     reuseExistingServer: false,
     timeout: 120_000,

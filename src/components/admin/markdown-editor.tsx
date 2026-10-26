@@ -63,6 +63,7 @@ export function MarkdownEditor({
   minHeight = '360px',
   maxHeight,
   onSubmit,
+  allowImages = false,
 }: {
   value: string
   onChange: (value: string) => void
@@ -72,11 +73,53 @@ export function MarkdownEditor({
   maxHeight?: string
   /** ⌘Enter / Ctrl+Enter (D-164). */
   onSubmit?: () => void
+  /** Article editor only: upload selected or pasted images to private R2. */
+  allowImages?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const change = useRef(onChange)
   const submit = useRef(onSubmit)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [uploadState, setUploadState] = useState<
+    'idle' | 'uploading' | 'failed'
+  >('idle')
+  async function uploadFiles(files: readonly File[]) {
+    const images = files.filter((file) => file.type.startsWith('image/'))
+    if (images.length === 0) return
+    setUploadState('uploading')
+    try {
+      for (const file of images) {
+        const form = new FormData()
+        form.set('file', file)
+        const response = await fetch('/api/media', {
+          method: 'POST',
+          body: form,
+        })
+        const result = (await response.json()) as { url?: unknown }
+        if (!response.ok || typeof result.url !== 'string') throw new Error()
+        const editor = view.current
+        if (!editor) throw new Error()
+        const selection = editor.state.selection.main
+        const alt = file.name
+          .replace(/\.[^.]+$/, '')
+          .replaceAll('[', '')
+          .replaceAll(']', '')
+        const markdown = `![${alt || '图片'}](${result.url})`
+        editor.dispatch({
+          changes: {
+            from: selection.from,
+            to: selection.to,
+            insert: markdown,
+          },
+          selection: { anchor: selection.from + markdown.length },
+        })
+      }
+      setUploadState('idle')
+    } catch {
+      setUploadState('failed')
+    }
+  }
   useEffect(() => {
     change.current = onChange
     submit.current = onSubmit
@@ -107,6 +150,20 @@ export function MarkdownEditor({
         syntaxHighlighting(k2Highlight),
         theme,
         EditorView.lineWrapping,
+        ...(allowImages
+          ? [
+              EditorView.domEventHandlers({
+                paste: (event) => {
+                  const files = [...(event.clipboardData?.files ?? [])]
+                  if (!files.some((file) => file.type.startsWith('image/')))
+                    return false
+                  event.preventDefault()
+                  void uploadFiles(files)
+                  return true
+                },
+              }),
+            ]
+          : []),
         EditorView.contentAttributes.of({
           'aria-label': label,
           // The shortcut lives on the editor, where it is handled (D-164).
@@ -143,7 +200,39 @@ export function MarkdownEditor({
       })
   }, [value])
 
-  return <div ref={host} className="ad-codemirror" data-editor={label} />
+  return (
+    <div>
+      {allowImages ? (
+        <div className="ad-media-upload">
+          <button
+            type="button"
+            className="ui-button"
+            disabled={uploadState === 'uploading'}
+            onClick={() => fileInput.current?.click()}
+          >
+            {uploadState === 'uploading' ? '正在上传…' : '插入图片'}
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            hidden
+            onChange={(event) => {
+              void uploadFiles([...(event.currentTarget.files ?? [])])
+              event.currentTarget.value = ''
+            }}
+          />
+          {uploadState === 'failed' ? (
+            <small role="alert" className="ad-field-error">
+              图片上传失败；支持 JPEG、PNG、WebP、GIF，单张不超过 10 MB
+            </small>
+          ) : null}
+        </div>
+      ) : null}
+      <div ref={host} className="ad-codemirror" data-editor={label} />
+    </div>
+  )
 }
 
 export type Mode = 'edit' | 'split' | 'preview'
@@ -173,6 +262,7 @@ export function MarkdownField({
   onModeChange,
   actions,
   onSubmit,
+  allowImages = false,
 }: {
   value: string
   onChange: (value: string) => void
@@ -191,6 +281,7 @@ export function MarkdownField({
   /** Buttons after the mode toggle, e.g. the quick Idea's 保存. */
   actions?: ReactNode
   onSubmit?: () => void
+  allowImages?: boolean
 }) {
   const [preview, setPreview] = useState<{ body: string; html: string } | null>(
     null,
@@ -267,6 +358,7 @@ export function MarkdownField({
       minHeight={minHeight}
       maxHeight={maxHeight}
       onSubmit={onSubmit}
+      allowImages={allowImages}
     />
   )
   return (

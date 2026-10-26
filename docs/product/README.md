@@ -27,7 +27,7 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 - 新增索引、需求或待办行时，必须使用插入操作，不得通过替换相邻已有行实现新增；编辑后复读相邻内容，确认原行与新行都存在。
 - 一次补丁不得对同一区间发送多个替换；所有行号必须来自编辑前最新读取，不得按同一补丁内删除或插入后的行号计算。编辑失败或发现语法问题后，先重新读取再修改。
 - 同步需求时只修改明确受影响的条目；旧内容只有在用户确认取消或替代时才移除。涉及跨文档规则的变更，检查需求、决策日志和待办的关联表述；决策日志只追加，不改写历史。
-- 设计依据：`design.md`（规范）+ `docs/kaili.dev-mocks/` 下的参照稿（D-109 / D-111）：首页 `k2-paper.html` / `k2-paper-en.html`，文章详情 `k2-article*.html`，Projects `k2-projects*.html`，书架 `k2-books*.html`，分享预览图 `k2-og.html`；共享样式 `k2.css`、主题切换 `k2-theme.js`。早期的 `a-ledger.html`（mock A，D-002）已删除，需要时可从提交 896b1fa 恢复；早期各轮变体的截图已删除，其中 A / B 两组可从同一提交恢复。
+- 设计依据：`design.md`（规范）+ `docs/kaili.dev-mocks/` 下的参照稿（D-109 / D-111）：首页 `k2-paper.html` / `k2-paper-en.html`，文章详情 `k2-article*.html`，Projects `k2-projects*.html`，书架 `k2-books*.html`；共享样式 `k2.css`、主题切换 `k2-theme.js`。`k2-og.html` 按 D-175 保留为被取代的动态分享图历史方案，不是现行运行时规范。早期的 `a-ledger.html`（mock A，D-002）已删除，需要时可从提交 896b1fa 恢复；早期各轮变体的截图已删除，其中 A / B 两组可从同一提交恢复。
 
 ## 当前阶段
 
@@ -43,4 +43,10 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 
 本轮新增脚本修复及开发配色回归已交 GPT-6.1 Sol 独立只读复核；除实施计划状态回写外无阻塞，状态已同步。D-169 配色可以提交，全站视觉验收仍未完成。
 
-仍需 Kai Li：全站视觉基准（P2 / P3 检查点、T3.3 人工验收；HTML 参照稿在此之前保留）；X、LinkedIn 真实地址（T3.3）；T2.5 留待统一修复的 UI 差异。原型之后的 GitHub 登录、D1、R2 与部署尚未拆分任务；OG 生成的 CPU 额度与缓存见 todo。不宣告 v1 完成。
+2026-10-25 · Kai Li 提供 X 与 LinkedIn 个人地址，首页介绍及页脚中英均改成实际链接；生产浏览器外链专项 6/6、公开站完整回归 127/127 通过。Kai Li 已批准 P2 / P3 当前公开站布局，生产页面 60 张本地视觉基准存于 `docs/notes/2026-10-25-visual-baseline/`，`pnpm test:visual` 像素回归 60/60 通过；旧 HTML 参照稿按用户要求保留。v1 生产化已拆 T7.1–T7.6，D1/R2 资源和 Drizzle 依赖已备，不等于真实数据、鉴权、图片或部署完成。
+
+2026-10-26 · T7.1 资源前置及 T7.2–T7.5 已完成：公开站和后台切到 D1；真实 GitHub OAuth/session 登录通过；R2 图片按四槽位鉴权；七天墓碑清理含失败重试；OG 改为版本化 Cache API。新增 D1 修订号避免双窗口晚到保存覆盖，数据库 trigger 封住 taxonomy 删除竞态，退出 POST 要求同源。Grok 首轮复核发现 session 原值落库，现已改为只存 SHA-256 摘要，并证明数据库摘要不能直接充当 Cookie；第二轮 `APPROVED`、无剩余阻塞。最终门禁：check 468/468、build、dry-run 7449.07 KiB / gzip 2022.79 KiB、生产 Playwright 129/129、后台 Playwright 46/46；证据见 `docs/notes/2026-10-26-T7-gates.md`。
+
+2026-10-26 · D-175 取代 T7.5 的动态 OG 部分：删除逐文章 Satori / resvg、WASM、Cache API 与 `/og/...` 运行时生成链路，文章继续输出各自的 Open Graph 文本元数据，并共用随部署静态资源提供的 1200×630 站点分享图。旧模板、缓存行为和 179ms / 2ms 观测只作为历史取舍依据；Workers Free 的首次 OG CPU 测量和计费不再是部署前置。切换后门禁：check 449/449、build、dry-run 4230.43 KiB / gzip 882.12 KiB、生产 Playwright 120/120、后台 Playwright 46/46。
+
+2026-10-26 · T7.6 的已授权范围已完成：远端 D1 成功应用 `0000`–`0004` 且 `PRAGMA foreign_key_check` 无结果；Worker 版本 `d0ba5ba6-f5aa-4f28-8328-16553d03a391` 已部署到 `https://kaili-dev.nautilus1876.workers.dev`，清理 Cron 为 `17 3 * * *`。线上已验证中英文公开页、重定向、sitemap、静态 1200×630 PNG、OAuth 启动配置、后台鉴权、空 D1、R2 binding 与不存在媒体 404；浏览器无控制台错误和横向溢出。`kaili.dev` 域名、DNS / route 与生产 OAuth App 回调切换未获授权，未执行；隐私正文、Idea 和真实图片未上传。

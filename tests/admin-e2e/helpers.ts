@@ -1,9 +1,24 @@
-import { createHash } from 'node:crypto'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
-export async function reset(request: APIRequestContext, fixture = 'default') {
+export async function reset(
+  request: APIRequestContext,
+  fixture = 'default',
+  page?: Page,
+) {
   const response = await request.post(`/_test-reset?fixture=${fixture}`)
   expect(response.status()).toBe(204)
+  if (page) {
+    const cookie = response.headers()['set-cookie']
+    const match = cookie?.match(/^([^=]+)=([^;]+)/)
+    if (match)
+      await page.context().addCookies([
+        {
+          name: match[1]!,
+          value: match[2]!,
+          url: 'http://127.0.0.1:3200/',
+        },
+      ])
+  }
 }
 
 /** Replace the whole CodeMirror document. */
@@ -20,16 +35,6 @@ export async function publicSnapshot(request: APIRequestContext, path: string) {
   const response = await request.get(path, { maxRedirects: 0 })
   const html = response.status() === 200 ? await response.text() : ''
   const pick = (pattern: RegExp) => html.match(pattern)?.[1] ?? null
-  const ogImage = pick(/<meta property="og:image" content="([^"]+)"/)
-  let ogHash: string | null = null
-  if (ogImage) {
-    const card = await request.get(new URL(ogImage).pathname)
-    expect(card.status(), ogImage).toBe(200)
-    expect(card.headers()['content-type'], ogImage).toBe('image/png')
-    ogHash = createHash('sha256')
-      .update(await card.body())
-      .digest('hex')
-  }
   // All visible text of the page body: article prose, headings and meta.
   const main = html.match(/<main[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? ''
   const mainText = main
@@ -50,7 +55,6 @@ export async function publicSnapshot(request: APIRequestContext, path: string) {
     ogTitle: pick(/<meta property="og:title" content="([^"]*)"/),
     ogDescription: pick(/<meta property="og:description" content="([^"]*)"/),
     h1: pick(/<h1[^>]*>([^<]*)<\/h1>/),
-    ogHash,
     mainText,
   }
 }

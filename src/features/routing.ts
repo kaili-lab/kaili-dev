@@ -108,8 +108,8 @@ export function alternateLanguage(language: Language): Language {
 /**
  * D-165: whether a link points at a public page this app renders, so a click
  * can be handled by the router instead of reloading the document. Anything
- * else (other sites, mail, in-page anchors, OG images, the sitemap, static
- * files, server-chosen language redirects) stays a browser navigation.
+ * else (other sites, mail, in-page anchors, the sitemap, static files and
+ * server-chosen language redirects) stays a browser navigation.
  */
 export function isClientPageHref(href: string): boolean {
   const path = href.split(/[?#]/, 1)[0]!

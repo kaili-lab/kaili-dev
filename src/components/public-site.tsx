@@ -5,30 +5,28 @@ import { K2Footer, K2Header, K2Link, K2PageHeading } from '#/components/k2'
 import type { Language } from '#/features/routing'
 
 function socialLinks(language: Language) {
-  const pending = language === 'zh' ? '地址待提供' : 'Address pending'
   return [
     {
       label: language === 'zh' ? '邮件' : 'Email',
       href: 'mailto:hello@kaili.dev',
     },
     { label: 'GitHub', href: 'https://github.com/kaili-lab' },
-    { label: `X（${pending}）` },
-    { label: `LinkedIn（${pending}）` },
+    { label: 'X', href: 'https://x.com/kaili_dev' },
+    {
+      label: 'LinkedIn',
+      href: 'https://www.linkedin.com/in/kai-li-696024230/',
+    },
   ]
 }
 
 export function PublicSocialLinks({ language }: { language: Language }) {
   return (
     <div className="site-social-links">
-      {socialLinks(language).map((link) =>
-        link.href ? (
-          <a key={link.label} href={link.href}>
-            {link.label}
-          </a>
-        ) : (
-          <span key={link.label}>{link.label}</span>
-        ),
-      )}
+      {socialLinks(language).map((link) => (
+        <a key={link.label} href={link.href}>
+          {link.label}
+        </a>
+      ))}
     </div>
   )
 }

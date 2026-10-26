@@ -28,6 +28,8 @@ pnpm format                       # Prettier 写入（docs/ 不参与格式化�
 
 ## 不能破的规则
 
+- 不得读取、搜索、输出或让工具返回 `.dev.vars` 的内容；排查本地配置时只核对变量名或让 Kai Li 自行确认，生产 secret 只用 `wrangler secret list` 核对名称，不读取值。
+
 - 代码分三层：`src/routes` → `src/features`（纯函数业务规则）→ `src/server/data`（数据访问）；页面和组件不得导入数据层，由 ESLint 拦截（D-127）。
 - 能交给工具检查的规则不写成文档约定；新增约束优先写成 lint 或测试，并保留一个故意违规的夹具（D-127）。
 - 色值只写在 `src/styles/tokens.css`，浅深两套；其他位置不得出现十六进制色值（D-128）。

@@ -1,6 +1,27 @@
 import { expect, test } from '@playwright/test'
 
 for (const language of ['zh', 'en'] as const) {
+  test(`${language} home and footer link to personal profiles`, async ({
+    page,
+  }) => {
+    await page.goto(`/${language}`)
+    for (const [label, href] of [
+      ['X', 'https://x.com/kaili_dev'],
+      ['LinkedIn', 'https://www.linkedin.com/in/kai-li-696024230/'],
+    ] as const) {
+      await expect(
+        page
+          .locator('.site-social-links')
+          .getByRole('link', { name: label, exact: true }),
+      ).toHaveAttribute('href', href)
+      await expect(
+        page
+          .locator('.k2-footer')
+          .getByRole('link', { name: label, exact: true }),
+      ).toHaveAttribute('href', href)
+    }
+  })
+
   for (const width of [1440, 390]) {
     test(`${language} ${width}px missing article neighbor leaves its slot empty`, async ({
       page,

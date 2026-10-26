@@ -6,9 +6,53 @@ import {
   visiblePosts,
   isClientPageHref,
 } from '../src/features/routing.ts'
-import { publishedPosts } from '../src/server/data/posts.ts'
-
-const posts = publishedPosts()
+const posts = [
+  {
+    slug: 'boundary-example',
+    zh: {
+      title: 'Boundary',
+      summary: 'Summary',
+      body: 'Body',
+      publishedAt: '2026-09-02',
+      updatedAt: '2026-09-02T00:00:00.000Z',
+      category: 'engineering',
+      tags: [],
+    },
+    en: {
+      title: 'Boundary',
+      summary: 'Summary',
+      body: 'Body',
+      publishedAt: '2026-09-02',
+      updatedAt: '2026-09-02T00:00:00.000Z',
+      category: 'engineering',
+      tags: [],
+    },
+  },
+  {
+    slug: 'zh-only-example',
+    zh: {
+      title: 'Chinese only',
+      summary: 'Summary',
+      body: 'Body',
+      publishedAt: '2026-08-01',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      category: 'engineering',
+      tags: [],
+    },
+  },
+  {
+    slug: 'en-only-example',
+    en: {
+      title: 'English only',
+      summary: 'Summary',
+      body: 'Body',
+      publishedAt: '2026-07-01',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      category: 'engineering',
+      tags: [],
+    },
+  },
+]
 
 describe('T3.1 language selection', () => {
   it.each([
@@ -66,7 +110,6 @@ describe('D-165 client-side page links', () => {
     ['mailto:hello@kaili.dev', false],
     ['//example.com/zh', false],
     ['#start', false],
-    ['/og/zh/boundary-example', false],
     ['/sitemap.xml', false],
     ['/images/say-right.png', false],
     ['/fonts/inter-OFL.txt', false],

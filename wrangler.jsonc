@@ -3,6 +3,16 @@
   "name": "kaili-dev",
   "compatibility_date": "2026-10-12",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server.ts",
   "assets": { "binding": "ASSETS" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kaili-dev",
+      "database_id": "9eb4d6be-a7fa-4bc7-9783-a9debc812047",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "kaili-dev" }],
+  "triggers": { "crons": ["17 3 * * *"] },
 }

@@ -16,7 +16,7 @@ import {
 
 let hydrationErrors: string[] = []
 test.beforeEach(async ({ request, page }) => {
-  await reset(request)
+  await reset(request, 'default', page)
   hydrationErrors = []
   page.on('console', (message) => {
     if (message.type() === 'error' && /hydrat/i.test(message.text()))
@@ -44,9 +44,7 @@ test('new article: blocked without category, saved, published, edited, republish
 }) => {
   await open(page, '/admin')
   await expect(page).toHaveURL(/\/admin\/posts$/)
-  await expect(page.locator('.ad-nav')).toContainText(
-    'Kai Li（开发环境假登录）',
-  )
+  await expect(page.locator('.ad-nav')).toContainText('Kai Li · 退出登录')
   await open(page, '/admin/posts/new')
   await page.getByLabel('标题').fill('流程测试')
   await page.getByLabel('摘要').fill('第一版摘要')
@@ -99,6 +97,117 @@ test('new article: blocked without category, saved, published, edited, republish
   expect(
     (await request.get('/en/writing/flow-test', { maxRedirects: 0 })).status(),
   ).toBe(404)
+})
+
+test('D1 article batch rolls back every table after a late constraint failure', async ({
+  request,
+}) => {
+  const response = await request.post(
+    '/_test-reset?fixture=default&verify=atomicity',
+  )
+  expect(response.status()).toBe(204)
+})
+
+test('unreferenced media retries after an R2 delete failure', async ({
+  request,
+}) => {
+  const response = await request.post(
+    '/_test-reset?fixture=default&verify=media-cleanup-retry',
+  )
+  expect(response.status()).toBe(204)
+})
+
+test('media cleanup honors exactly seven days and a new reference', async ({
+  request,
+}) => {
+  const response = await request.post(
+    '/_test-reset?fixture=default&verify=media-cleanup-boundary',
+  )
+  expect(response.status()).toBe(204)
+})
+
+test('anonymous admin page enters login and RPC stops after the session is gone', async ({
+  browser,
+  page,
+}) => {
+  const anonymous = await browser.newContext({
+    baseURL: 'http://127.0.0.1:3200',
+  })
+  const response = await anonymous.request.get('/admin/ideas?q=private', {
+    maxRedirects: 0,
+  })
+  expect(response.status()).toBe(302)
+  const location = response.headers().location
+  expect(location).toContain('/admin/login?')
+  expect(location).toContain('returnTo=%2Fadmin%2Fideas%3Fq%3Dprivate')
+  if (!location) throw new Error('Missing admin login redirect')
+  const login = await anonymous.request.get(location)
+  expect(login.status()).toBe(200)
+  expect(await login.text()).toContain('使用 GitHub 登录')
+  await anonymous.close()
+
+  await open(page, '/admin/ideas')
+  await page.context().clearCookies()
+  await typeBody(page, 'session 已失效')
+  await page
+    .getByRole('group', { name: '新 Idea显示方式' })
+    .getByRole('button', { name: '预览' })
+    .click()
+  await expect(page.getByRole('alert')).toHaveText('预览失败，请稍后重试')
+})
+
+test('uploaded article image stays private until its language is published', async ({
+  page,
+  browser,
+}) => {
+  await open(page, '/admin/posts/new')
+  await page.locator('input[type="file"][accept*="image/png"]').setInputFiles({
+    name: 'draft-image.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  })
+  await expect(page.getByRole('button', { name: '插入图片' })).toBeEnabled()
+  const body = (await page.locator('.cm-content').first().textContent()) ?? ''
+  const mediaUrl = body.match(/\/media\/[0-9a-f-]{36}/)?.[0]
+  expect(mediaUrl).toBeTruthy()
+  expect(
+    await page.evaluate(async (url) => (await fetch(url!)).status, mediaUrl),
+  ).toBe(200)
+
+  const anonymous = await browser.newContext({
+    baseURL: 'http://127.0.0.1:3200',
+  })
+  expect((await anonymous.request.get(mediaUrl!)).status()).toBe(404)
+
+  await page.getByLabel('标题').fill('图片边界')
+  await page.getByLabel('摘要').fill('验证草稿与公开图片边界。')
+  await page.getByLabel('slug').fill('media-boundary')
+  await page.getByLabel('分类').selectOption('engineering')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(status(page)).toHaveText(/^已保存/)
+  expect((await anonymous.request.get(mediaUrl!)).status()).toBe(404)
+
+  await page.getByRole('button', { name: '发布中文' }).click()
+  await expect(status(page)).toHaveText(/^中文版已发布/)
+  const published = await anonymous.request.get(mediaUrl!)
+  expect(published.status()).toBe(200)
+  expect(published.headers()['content-type']).toBe('image/png')
+
+  await typeBody(page, '正文已移除图片。')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(status(page)).toHaveText(/^已保存/)
+  expect((await anonymous.request.get(mediaUrl!)).status()).toBe(200)
+
+  await page.getByRole('button', { name: '发布中文' }).click()
+  await expect(status(page)).toHaveText(/^中文版已发布/)
+  expect((await anonymous.request.get(mediaUrl!)).status()).toBe(404)
+  expect(
+    await page.evaluate(async (url) => (await fetch(url!)).status, mediaUrl),
+  ).toBe(200)
+  await anonymous.close()
 })
 
 test('Chinese publishes alone while English stays a draft; tabs keep separate edits', async ({
@@ -321,7 +430,13 @@ test('the server rejects a missing category even when the form is bypassed (T51-
 }) => {
   const before = await publicSnapshot(request, '/zh/writing/boundary-example')
   await open(page, '/admin/posts/boundary-example?lang=zh')
-  // Capture the real save request, then replay it with the category removed.
+  // Capture a real save request but abort it, then replay a modified request
+  // against the same current revision.
+  await page.route(
+    (url) => saveCall(url.href),
+    (route) => route.abort('connectionreset'),
+    { times: 1 },
+  )
   const [captured] = await Promise.all([
     page.waitForRequest(
       (candidate) =>
@@ -329,7 +444,7 @@ test('the server rejects a missing category even when the form is bypassed (T51-
     ),
     page.getByRole('button', { name: '保存', exact: true }).click(),
   ])
-  await expect(status(page)).toHaveText(/^已保存/)
+  await expect(alert(page)).toContainText('无法确认保存结果')
   const body = captured.postData() ?? ''
   // Server functions use seroval; strings are {"t":1,"s":…}.
   expect(body).toContain('{"t":1,"s":"engineering"}')
@@ -419,11 +534,10 @@ for (const language of ['zh', 'en'] as const) {
       canonical: before.current.canonical,
       hreflang: before.current.hreflang,
     })
-    expect(after.ogHash).not.toBe(before.current.ogHash)
     // The public body is the new one and the old one is gone.
     expect(after.mainText).toContain(body)
     expect(after.mainText).not.toContain(oldLine)
-    // The other language keeps its baseline, OG included.
+    // The other language keeps its baseline, including public metadata.
     expect(await publicSnapshot(request, path(other))).toEqual(before.other)
     // Sitemap: same members; only this language's lastmod moves.
     const map = await sitemap(request)
@@ -590,6 +704,11 @@ test('the server rejects a category or tag that does not exist', async ({
 }) => {
   const before = await publicSnapshot(request, '/zh/writing/boundary-example')
   await open(page, '/admin/posts/boundary-example?lang=zh')
+  await page.route(
+    (url) => calls('publishAdminArticle')(url.href),
+    (route) => route.abort('connectionreset'),
+    { times: 1 },
+  )
   const [captured] = await Promise.all([
     page.waitForRequest(
       (candidate) =>
@@ -598,11 +717,7 @@ test('the server rejects a category or tag that does not exist', async ({
     ),
     page.getByRole('button', { name: '发布中文' }).click(),
   ])
-  await expect(status(page)).toHaveText(/已发布/)
-  const published = await publicSnapshot(
-    request,
-    '/zh/writing/boundary-example',
-  )
+  await expect(alert(page)).toContainText('无法确认发布结果')
   const body = captured.postData() ?? ''
   const replay = (payload: string) =>
     page.evaluate(
@@ -630,9 +745,8 @@ test('the server rejects a category or tag that does not exist', async ({
   )
   expect(ghostTag).toContain('tag-unknown')
   expect(await publicSnapshot(request, '/zh/writing/boundary-example')).toEqual(
-    published,
+    before,
   )
-  expect(published.mainText).not.toEqual(before.mainText)
 })
 
 test('feedback names the language that was published, not the tab now open', async ({
@@ -726,6 +840,29 @@ test('closing or reloading with unsaved changes asks; the Idea editor asks too',
   await expect(idea).toHaveURL(/\/admin\/ideas\/idea-boundaries\?mode=edit$/)
 })
 
+test('a stale editor cannot overwrite a newer article save', async ({
+  page,
+}) => {
+  await open(page, '/admin/posts/boundary-example')
+  const newer = await page.context().newPage()
+  await open(newer, '/admin/posts/boundary-example')
+
+  await newer.getByLabel('标题').fill('较新的窗口已保存')
+  await newer.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(newer.getByRole('status')).toContainText('已保存')
+
+  await page.getByLabel('标题').fill('较旧窗口的晚到修改')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(alert(page)).toContainText(
+    '文章已在其他页面修改；请刷新后合并你的编辑内容',
+  )
+  await expect(page.getByLabel('标题')).toHaveValue('较旧窗口的晚到修改')
+
+  await newer.reload()
+  await expect(newer.getByLabel('标题')).toHaveValue('较新的窗口已保存')
+  await newer.close()
+})
+
 test('a failed request reports an unknown result and keeps the edits (D-160 ②)', async ({
   page,
 }) => {
@@ -743,7 +880,7 @@ test('a failed request reports an unknown result and keeps the edits (D-160 ②)
   await expect(page.getByRole('tab', { name: /中文 .* •/ })).toBeVisible()
 })
 
-test('renaming a category shows at once on published pages and OG (D-160 ①)', async ({
+test('renaming a category shows at once on published pages (D-160 ①)', async ({
   page,
   request,
 }) => {
@@ -762,7 +899,6 @@ test('renaming a category shows at once on published pages and OG (D-160 ①)', 
   await expect(page.getByRole('status')).toHaveText('已保存')
   const after = await publicSnapshot(request, '/zh/writing/boundary-example')
   expect(after.mainText).toContain('工程实践')
-  expect(after.ogHash).not.toBe(before.ogHash)
   // The article itself (title, body) is untouched.
   expect(after.h1).toBe(before.h1)
 })
@@ -918,9 +1054,6 @@ test('renaming tags and English names shows at once on both languages (D-160 ①
   expect(after.en.mainText).toContain('TS Lang')
   expect(after.en.mainText).toContain('Craft')
   expect(after.en.mainText).not.toContain('Engineering')
-  expect(after.en.ogHash).not.toBe(before.en.ogHash)
-  // Chinese OG uses the Chinese category name, which did not change.
-  expect(after.zh.ogHash).toBe(before.zh.ogHash)
   expect(after.zh.h1).toBe(before.zh.h1)
   expect(after.en.h1).toBe(before.en.h1)
 })

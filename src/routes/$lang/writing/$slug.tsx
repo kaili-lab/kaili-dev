@@ -39,12 +39,12 @@ export const Route = createFileRoute('/$lang/writing/$slug')({
           },
           {
             property: 'og:image',
-            content: `https://kaili.dev/og/${params.lang}/${encodeURIComponent(params.slug)}`,
+            content: `${loaderData.origin}/images/share-card.png`,
           },
           { property: 'og:image:type', content: 'image/png' },
           { property: 'og:image:width', content: '1200' },
           { property: 'og:image:height', content: '630' },
-          { property: 'og:image:alt', content: loaderData.version.title },
+          { property: 'og:image:alt', content: 'Kai Li · kaili.dev' },
           {
             property: 'article:published_time',
             content: loaderData.version.publishedAt,
