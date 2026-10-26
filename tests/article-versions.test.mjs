@@ -5,9 +5,12 @@ import { URL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import {
+  canDeleteArticle,
+  hasLivePublished,
   publishArticle,
   saveArticle,
   versionState,
+  withdrawArticle,
 } from '../src/features/article-versions.ts'
 
 // T5.2: one test per T5.1 case (docs/product/article-state-cases.md). The
@@ -612,5 +615,45 @@ describe.each(['zh', 'en'])('T5.1 D-156 ④ / ⑤ input edge cases, %s', (L) => 
       ok: false,
       errors: ['title-required'],
     })
+  })
+})
+
+describe('文章撤下与删除边界', () => {
+  it('W01 P/P 撤下当前语言保留快照和草稿', () => {
+    const before = article('P', 'P')
+    const next = withdrawArticle(before, 'zh', now)
+    expect(next.zh.published.withdrawnAt).toBe(now)
+    expect(next.zh.published.publishedAt).toBe(earlier)
+    expect(next.zh.draft).toEqual(before.zh.draft)
+    expect(next.en).toEqual(before.en)
+    expect(versionState(next, 'zh')).toBe('withdrawn')
+    expect(hasLivePublished(next)).toBe(true)
+    expect(canDeleteArticle(next)).toBe(false)
+  })
+
+  it('W02 撤下后重复撤下不改变文章', () => {
+    const before = withdrawArticle(article('P', 'N'), 'zh', now)
+    expect(withdrawArticle(before, 'zh', '2026-10-15T00:00:00.000Z')).toEqual(
+      before,
+    )
+  })
+
+  it('W03 撤下语言重新发布保留首次发布时间', () => {
+    const before = withdrawArticle(article('P', 'N'), 'zh', now)
+    const next = run('publish', before, 'zh').article
+    expect(next.zh.published.withdrawnAt).toBeUndefined()
+    expect(next.zh.published.publishedAt).toBe(earlier)
+    expect(versionState(next, 'zh')).toBe('published')
+    expect(hasLivePublished(next)).toBe(true)
+  })
+
+  it('W04 N/N 与 W/N 可删除，W/P 不可删除', () => {
+    expect(canDeleteArticle(article('N', 'N'))).toBe(true)
+    expect(
+      canDeleteArticle(withdrawArticle(article('P', 'N'), 'zh', now)),
+    ).toBe(true)
+    expect(
+      canDeleteArticle(withdrawArticle(article('P', 'P'), 'zh', now)),
+    ).toBe(false)
   })
 })

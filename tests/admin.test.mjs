@@ -140,6 +140,18 @@ describe('admin list rows and order (D-104 / D-158 ①)', () => {
     )
     expect(row.publishedAt).toBe('2026-03-01T00:00:00.000Z')
   })
+  it('does not treat withdrawn snapshots as active publication', () => {
+    const row = adminRow(
+      'a',
+      article(
+        { published: { ...snapshot('c'), withdrawnAt: '2026-04-01' } },
+        {},
+      ),
+      'x',
+    )
+    expect(row.publishedAt).toBeUndefined()
+    expect(row.withdrawnAt).toBe('2026-04-01')
+  })
   it('puts never-published articles first by save time, then by publish time', () => {
     const rows = [
       { id: 'p-old', publishedAt: '2026-01-01', savedAt: '2026-09-09' },
@@ -152,6 +164,18 @@ describe('admin list rows and order (D-104 / D-158 ①)', () => {
       'd-old',
       'p-new',
       'p-old',
+    ])
+  })
+  it('orders withdrawn articles by withdrawal time', () => {
+    const rows = [
+      { id: 'withdrawn-old', withdrawnAt: '2026-10-05', savedAt: '2026-01-01' },
+      { id: 'withdrawn-new', withdrawnAt: '2026-10-10', savedAt: '2026-01-01' },
+      { id: 'draft', savedAt: '2026-10-01' },
+    ]
+    expect(sortAdminRows(rows).map((row) => row.id)).toEqual([
+      'withdrawn-new',
+      'withdrawn-old',
+      'draft',
     ])
   })
 })
@@ -269,6 +293,8 @@ describe('D-163 list pages', () => {
     row('b', 'Beta', 'published', 'missing', 'read'),
     row('c', 'Gamma', 'modified', 'published'),
     row('d', 'Delta', 'missing', 'missing', 'read'),
+    row('e', 'Epsilon', 'withdrawn', 'missing'),
+    row('f', 'Zeta', 'published', 'withdrawn'),
   ]
   const ids = (filter) =>
     filterAdminRows(rows, {
@@ -279,12 +305,13 @@ describe('D-163 list pages', () => {
     }).map((item) => item.id)
 
   it.each([
-    [{}, ['a', 'b', 'c', 'd']],
+    [{}, ['a', 'b', 'c', 'd', 'e', 'f']],
     [{ status: 'pending' }, ['a', 'c']],
-    [{ status: 'published' }, ['b', 'c']],
+    [{ status: 'published' }, ['b', 'c', 'f']],
     [{ status: 'unpublished' }, ['a', 'd']],
+    [{ status: 'withdrawn' }, ['e', 'f']],
     [{ category: 'read' }, ['b', 'd']],
-    [{ q: 'ta' }, ['b', 'd']],
+    [{ q: 'ta' }, ['b', 'd', 'f']],
     [{ q: 'ta', status: 'published', category: 'read' }, ['b']],
   ])('filters %j', (filter, expected) => {
     expect(ids(filter)).toEqual(expected)

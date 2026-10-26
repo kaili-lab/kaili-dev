@@ -1463,3 +1463,77 @@ test('D-164: saving a quick Idea while previewing leaves a settled preview', asy
   await toggle.getByRole('button', { name: '预览' }).click()
   await expect(page.locator('[data-preview="新 Idea"]')).toContainText('第二条')
 })
+
+test('撤下语言版本后可恢复，全部撤下后才能删除文章', async ({
+  page,
+  request,
+}) => {
+  await open(page, '/admin/posts/new')
+  await page.getByLabel('分类').selectOption('engineering')
+  await page.getByLabel('slug').fill('withdraw-delete-test')
+  await page.getByLabel('标题').fill('撤下删除测试')
+  await page.getByLabel('摘要').fill('摘要')
+  await typeBody(page, '正文')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByRole('button', { name: '发布中文', exact: true }).click()
+  await expect(page.getByRole('tab', { name: /中文 · 已发布$/ })).toBeVisible()
+  expect((await request.get('/zh/writing/withdraw-delete-test')).status()).toBe(
+    200,
+  )
+  await open(page, '/admin/posts')
+  const createdRow = rows(page).filter({ hasText: '撤下删除测试' })
+  await expect(createdRow.locator('td[data-label="分类"]')).toHaveText('工程')
+  await createdRow
+    .getByRole('link', { name: '撤下删除测试', exact: true })
+    .click()
+  await expect(
+    page.getByRole('button', { name: '撤下中文', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: '删除文章' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: '撤下中文', exact: true }).click()
+  await expect(confirmDialog(page)).toContainText('撤下中文？')
+  await confirmDialog(page).getByRole('button', { name: '撤下' }).click()
+  await expect(status(page)).toHaveText(/^中文版已撤下 \d\d:\d\d$/)
+  expect((await request.get('/zh/writing/withdraw-delete-test')).status()).toBe(
+    404,
+  )
+  expect(await sitemap(request)).not.toContain(
+    '/zh/writing/withdraw-delete-test',
+  )
+  const neutral = await request.get('/writing/withdraw-delete-test', {
+    maxRedirects: 0,
+  })
+  expect(neutral.status()).toBe(404)
+  await open(page, '/admin/posts')
+  await page.getByLabel('状态').selectOption('withdrawn')
+  const withdrawnRow = rows(page).filter({ hasText: '撤下删除测试' })
+  await expect(withdrawnRow).toHaveCount(1)
+  await expect(withdrawnRow.locator('td[data-label="时间"]')).toContainText(
+    '撤下于',
+  )
+  await withdrawnRow
+    .getByRole('link', { name: '撤下删除测试', exact: true })
+    .click()
+  await expect(
+    page.getByRole('button', { name: '发布中文', exact: true }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '发布中文', exact: true }).click()
+  await expect(page.getByRole('tab', { name: /中文 · 已发布$/ })).toBeVisible()
+  expect((await request.get('/zh/writing/withdraw-delete-test')).status()).toBe(
+    200,
+  )
+
+  await page.getByRole('button', { name: '撤下中文', exact: true }).click()
+  await confirmDialog(page).getByRole('button', { name: '撤下' }).click()
+  await expect(page.getByRole('button', { name: '删除文章' })).toBeVisible()
+  await page.getByRole('button', { name: '删除文章' }).click()
+  await expect(confirmDialog(page)).toContainText('永久删除这篇文章？')
+  await confirmDialog(page).getByRole('button', { name: '删除' }).click()
+  await expect(page).toHaveURL(/\/admin\/posts(?:\?status=withdrawn)?$/)
+  await expect(page.getByText('撤下删除测试')).toHaveCount(0)
+  expect((await request.get('/zh/writing/withdraw-delete-test')).status()).toBe(
+    404,
+  )
+})

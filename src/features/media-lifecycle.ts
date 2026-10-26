@@ -1,5 +1,5 @@
 export type MediaLanguage = 'zh' | 'en'
-export type MediaVisibility = 'draft' | 'published'
+export type MediaVisibility = 'draft' | 'published' | 'withdrawn'
 
 export type MediaReference = {
   objectKey: string

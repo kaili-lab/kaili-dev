@@ -41,5 +41,11 @@ jobs:
       - name: Run checks
         run: pnpm check
 
-      - name: Build and deploy
-        run: pnpm deploy
+      - name: Build
+        run: pnpm build
+
+      - name: Apply remote D1 migrations
+        run: pnpm exec wrangler d1 migrations apply kaili-dev --remote
+
+      - name: Deploy Worker
+        run: pnpm exec wrangler deploy

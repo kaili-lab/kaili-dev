@@ -109,10 +109,16 @@ export function articleMediaStatements(
   ]
   for (const language of ['zh', 'en'] as const) {
     const version = article[language]
-    for (const [visibility, images] of [
-      ['draft', version.draft?.images ?? []],
-      ['published', version.published?.images ?? []],
-    ] as const)
+    const publishedSlot = version.published
+      ? version.published.withdrawnAt
+        ? (['withdrawn', version.published.images] as const)
+        : (['published', version.published.images] as const)
+      : null
+    const slots = [
+      ['draft', version.draft?.images ?? []] as const,
+      ...(publishedSlot ? [publishedSlot] : []),
+    ]
+    for (const [visibility, images] of slots) {
       for (const objectKey of slotKeys(images)) {
         currentObjectKeys.add(objectKey)
         statements.push(
@@ -132,6 +138,7 @@ export function articleMediaStatements(
             ),
         )
       }
+    }
   }
   for (const objectKey of new Set([
     ...previousObjectKeys,

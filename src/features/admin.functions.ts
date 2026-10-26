@@ -16,9 +16,11 @@ import {
   type TaxonomyEntry,
 } from '#/features/admin'
 import {
+  canDeleteArticle,
   publishArticle,
   saveArticle,
   versionState,
+  withdrawArticle,
   type Article,
   type EditInput,
   type Language,
@@ -29,6 +31,7 @@ import { requireAdminFunctionSession } from '#/lib/require-admin-session'
 import { runtimeDatabase, type D1Database } from '#/server/data/db'
 import {
   ArticleWriteConflictError,
+  deleteStoredArticle,
   getStoredArticle,
   listStoredArticles,
   newArticleId,
@@ -131,6 +134,22 @@ function editRequest(input: unknown): EditRequest {
   }
 }
 
+type ArticleActionRequest = {
+  id: string
+  revision: number
+  language?: Language
+}
+
+function articleActionRequest(input: unknown): ArticleActionRequest {
+  const value = object(input)
+  return {
+    id: text(value.id, 'id'),
+    revision: revision(value.revision),
+    language:
+      value.language === undefined ? undefined : language(value.language),
+  }
+}
+
 // ---- views ----------------------------------------------------------------
 
 const label = (entries: TaxonomyEntry[], slug?: string) =>
@@ -157,6 +176,7 @@ async function editorView(
       zh: versionState(article, 'zh'),
       en: versionState(article, 'en'),
     },
+    canDelete: id !== null && canDeleteArticle(article),
     slugLocked: Boolean(article.zh.published || article.en.published),
     categories,
     tags,
@@ -191,6 +211,9 @@ export const listAdminArticles = createServerFn({ method: 'GET' })
     const last = new Map(
       records.map((record) => [record.id, record.lastLanguage]),
     )
+    const slugs = new Map(
+      records.map((record) => [record.id, record.article.slug]),
+    )
     const rows = filterAdminRows(
       sortAdminRows(
         records.map((record) =>
@@ -204,7 +227,7 @@ export const listAdminArticles = createServerFn({ method: 'GET' })
       ...page,
       items: page.items.map((row) => ({
         ...row,
-        slug: records.find((record) => record.id === row.id)?.article.slug,
+        slug: slugs.get(row.id),
         categoryName: label(categories, row.category),
         lastLanguage: last.get(row.id) ?? ('zh' as const),
       })),
@@ -250,6 +273,7 @@ export type CommitError =
   | 'tag-unknown'
   | 'image-unavailable'
   | 'stale-write'
+  | 'not-found'
 type EditResult =
   { ok: true; view: EditorView } | { ok: false; errors: CommitError[] }
 
@@ -261,7 +285,7 @@ async function commit(
   const existing = request.id
     ? await getStoredArticle(database, request.id)
     : undefined
-  if (request.id && !existing) throw new Error('Article not found')
+  if (request.id && !existing) return { ok: false, errors: ['not-found'] }
   if (existing && request.revision !== existing.revision)
     return { ok: false, errors: ['stale-write'] }
   const [categories, tags, ideas] = await Promise.all([
@@ -331,6 +355,61 @@ export const publishAdminArticle = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
   .validator(editRequest)
   .handler(({ data }) => commit('publish', data))
+
+export const withdrawAdminArticle = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
+  .validator(articleActionRequest)
+  .handler(async ({ data }) => {
+    if (!data.language) throw new Error('Language required')
+    const database = await runtimeDatabase()
+    const existing = await getStoredArticle(database, data.id)
+    if (!existing) return { ok: false as const, error: 'not-found' as const }
+    if (existing.revision !== data.revision)
+      return { ok: false as const, error: 'stale-write' as const }
+    const nextArticle = withdrawArticle(
+      existing.article,
+      data.language,
+      new Date().toISOString(),
+    )
+    if (nextArticle === existing.article)
+      return { ok: false as const, error: 'not-published' as const }
+    try {
+      const nextRevision = await putStoredArticle(
+        database,
+        { ...existing, article: nextArticle },
+        existing.revision,
+      )
+      return {
+        ok: true as const,
+        view: await editorView(
+          database,
+          existing.id,
+          nextArticle,
+          existing.ideaIds,
+          nextRevision,
+        ),
+      }
+    } catch (error) {
+      if (error instanceof ArticleWriteConflictError)
+        return { ok: false as const, error: 'stale-write' as const }
+      throw error
+    }
+  })
+
+export const deleteAdminArticle = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
+  .validator(articleActionRequest)
+  .handler(async ({ data }) => {
+    const result = await deleteStoredArticle(
+      await runtimeDatabase(),
+      data.id,
+      data.revision,
+      new Date().toISOString(),
+    )
+    return result === 'deleted'
+      ? { ok: true as const }
+      : { ok: false as const, error: result }
+  })
 
 // ---- categories and tags ----------------------------------------------------
 

@@ -1,4 +1,8 @@
-import type { Article, LanguageVersion } from '#/features/article-versions'
+import {
+  hasLivePublished,
+  type Article,
+  type LanguageVersion,
+} from '#/features/article-versions'
 import type { Language, PublicPost } from '#/features/posts'
 import type { D1Database, D1PreparedStatement } from '#/server/data/db'
 import {
@@ -112,6 +116,7 @@ type LanguageRow = {
   published_tags_json: string
   published_at: string | null
   published_updated_at: string | null
+  withdrawn_at: string | null
 }
 type SeedVersion = {
   draft?: { title: string; summary: string; body: string; images: string[] }
@@ -164,6 +169,7 @@ function rowVersion(row: LanguageRow): LanguageVersion {
           updatedAt: row.published_updated_at,
           category: row.published_category,
           tags: parseList(row.published_tags_json),
+          ...(row.withdrawn_at ? { withdrawnAt: row.withdrawn_at } : {}),
         }
   return { ...(draft ? { draft } : {}), ...(published ? { published } : {}) }
 }
@@ -209,6 +215,7 @@ function emptyLanguageRow(articleId: string, language: Language): LanguageRow {
     published_tags_json: '[]',
     published_at: null,
     published_updated_at: null,
+    withdrawn_at: null,
   }
 }
 
@@ -323,8 +330,9 @@ function articleStatements(
           `INSERT INTO article_languages
            (article_id, language, draft_title, draft_summary, draft_body, draft_images_json,
             published_title, published_summary, published_body, published_images_json,
-            published_category, published_tags_json, published_at, published_updated_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            published_category, published_tags_json, published_at, published_updated_at,
+            withdrawn_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE ${ownsWrite}`,
         )
         .bind(
@@ -342,6 +350,7 @@ function articleStatements(
           JSON.stringify(version.published?.tags ?? []),
           version.published?.publishedAt ?? null,
           version.published?.updatedAt ?? null,
+          version.published?.withdrawnAt ?? null,
           record.id,
           writeToken,
         ),
@@ -440,6 +449,41 @@ export async function putStoredArticle(
   return current.revision
 }
 
+export type ArticleDeleteResult =
+  'deleted' | 'not-found' | 'stale-write' | 'still-published'
+
+export async function deleteStoredArticle(
+  database: D1Database,
+  id: string,
+  expectedRevision: number,
+  now: string,
+): Promise<ArticleDeleteResult> {
+  const record = await getStoredArticle(database, id)
+  if (!record) return 'not-found'
+  if (record.revision !== expectedRevision) return 'stale-write'
+  if (hasLivePublished(record.article)) return 'still-published'
+
+  const mediaKeys = await articleMediaObjectKeys(database, id)
+  await database.batch([
+    database
+      .prepare('DELETE FROM articles WHERE id = ? AND revision = ?')
+      .bind(id, expectedRevision),
+    ...mediaKeys.map((objectKey) =>
+      database
+        .prepare(
+          `UPDATE media_objects
+           SET unreferenced_since = COALESCE(unreferenced_since, ?)
+           WHERE object_key = ? AND NOT EXISTS (
+             SELECT 1 FROM media_references WHERE object_key = ?
+           )`,
+        )
+        .bind(now, objectKey, objectKey),
+    ),
+  ])
+  const remaining = await getStoredArticle(database, id)
+  return remaining ? 'stale-write' : 'deleted'
+}
+
 export function newArticleId(): string {
   return crypto.randomUUID()
 }
@@ -484,7 +528,7 @@ export async function publishedPosts(
        WHERE a.slug IS NOT NULL AND al.published_title IS NOT NULL
          AND al.published_summary IS NOT NULL AND al.published_body IS NOT NULL
          AND al.published_category IS NOT NULL AND al.published_at IS NOT NULL
-         AND al.published_updated_at IS NOT NULL
+         AND al.published_updated_at IS NOT NULL AND al.withdrawn_at IS NULL
        ORDER BY al.published_at DESC, a.id ASC`,
     )
     .all<{

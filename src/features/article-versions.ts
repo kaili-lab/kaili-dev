@@ -17,6 +17,8 @@ export type PublishedSnapshot = VersionContent & {
   /** Shared metadata as it was when this language was last published. */
   category: string
   tags: string[]
+  /** Set when this language is withdrawn; the snapshot remains restorable. */
+  withdrawnAt?: string
 }
 
 export type LanguageVersion = {
@@ -32,7 +34,8 @@ export type Article = {
   en: LanguageVersion
 }
 
-export type VersionState = 'missing' | 'draft' | 'published' | 'modified'
+export type VersionState =
+  'missing' | 'draft' | 'published' | 'modified' | 'withdrawn'
 
 export type EditInput = {
   language: Language
@@ -94,11 +97,39 @@ export function versionState(
 ): VersionState {
   const { draft, published } = article[language]
   if (!published) return draft ? 'draft' : 'missing'
+  if (published.withdrawnAt) return 'withdrawn'
   const unchanged =
     (!draft || sameContent(draft, published)) &&
     published.category === article.category &&
     sameList(published.tags, article.tags)
   return unchanged ? 'published' : 'modified'
+}
+
+export function hasLivePublished(article: Article): boolean {
+  return Boolean(
+    (article.zh.published && !article.zh.published.withdrawnAt) ||
+    (article.en.published && !article.en.published.withdrawnAt),
+  )
+}
+
+export function canDeleteArticle(article: Article): boolean {
+  return !hasLivePublished(article)
+}
+
+export function withdrawArticle(
+  article: Article,
+  language: Language,
+  now: string,
+): Article {
+  const published = article[language].published
+  if (!published || published.withdrawnAt) return article
+  return {
+    ...article,
+    [language]: {
+      ...article[language],
+      published: { ...published, withdrawnAt: now },
+    },
+  }
 }
 
 function slugLocked(article: Article) {

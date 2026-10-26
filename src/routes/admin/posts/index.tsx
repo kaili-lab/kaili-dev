@@ -47,6 +47,7 @@ const statusText: Record<ArticleStatusFilter, string> = {
   pending: '有草稿或未发布修改',
   published: '已发布（任一语言）',
   unpublished: '从未发布',
+  withdrawn: '已撤下',
 }
 
 const day = (iso: string) => iso.slice(0, 10)
@@ -192,7 +193,9 @@ function AdminPosts() {
                 <td data-label="时间" className="ad-time">
                   {row.publishedAt
                     ? `发布于 ${day(row.publishedAt)}`
-                    : `保存于 ${minute(row.savedAt)}`}
+                    : row.withdrawnAt
+                      ? `撤下于 ${day(row.withdrawnAt)}`
+                      : `保存于 ${minute(row.savedAt)}`}
                 </td>
                 <td data-label="操作">
                   <div className="ad-cell-actions">

@@ -3,14 +3,20 @@ import { Link, useNavigate } from '@tanstack/react-router'
 
 import type { Language } from '#/features/article-versions'
 import {
+  deleteAdminArticle,
   publishAdminArticle,
   saveAdminArticle,
   saveTaxonomyEntry,
+  withdrawAdminArticle,
   type CommitError,
   type EditorView,
 } from '#/features/admin.functions'
 import { AdminState, stateLabel } from '#/components/admin/admin-shell'
-import { FormDialog, useLeaveGuard } from '#/components/admin/dialogs'
+import {
+  ConfirmDialog,
+  FormDialog,
+  useLeaveGuard,
+} from '#/components/admin/dialogs'
 import { lastPostsSearch } from '#/components/admin/list-page'
 import { MarkdownField } from '#/components/admin/markdown-editor'
 import { TaxonomyFields } from '#/components/admin/taxonomy-page'
@@ -18,9 +24,14 @@ import { TaxonomyFields } from '#/components/admin/taxonomy-page'
 type Content = { title: string; summary: string; body: string }
 type Shared = { slug: string; category: string; tags: string[] }
 type Feedback =
-  | { kind: 'saved' | 'published'; at: string; language: Language }
+  | {
+      kind: 'saved' | 'published' | 'withdrawn'
+      at: string
+      language: Language
+    }
   | { kind: 'rejected'; operation: 'save' | 'publish'; errors: string[] }
   | { kind: 'unknown'; operation: 'save' | 'publish' }
+  | { kind: 'action-error'; message: string }
 
 const languages: Language[] = ['zh', 'en']
 const languageName = { zh: '中文', en: 'English' }
@@ -39,6 +50,7 @@ const errorText: Record<CommitError, string> = {
   'tag-unknown': '标签不存在，请刷新后重新选择',
   'image-unavailable': '正文包含不存在或已删除的上传图片',
   'stale-write': '文章已在其他页面修改；请刷新后合并你的编辑内容',
+  'not-found': '文章已被删除，请返回文章列表',
 }
 const errorField: Record<CommitError, string> = {
   'category-required': 'category',
@@ -53,6 +65,7 @@ const errorField: Record<CommitError, string> = {
   'tag-unknown': 'tags',
   'image-unavailable': 'body',
   'stale-write': 'form',
+  'not-found': 'form',
 }
 
 const contentOf = (view: EditorView, language: Language): Content => {
@@ -132,7 +145,9 @@ export function ArticleEditor({
       ? { kind: done === 'save' ? 'saved' : 'published', at: time(), language }
       : null,
   )
-  const [busy, setBusy] = useState<'save' | 'publish' | null>(null)
+  const [busy, setBusy] = useState<
+    'save' | 'publish' | 'withdraw' | 'delete' | null
+  >(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [newCategory, setNewCategory] = useState(false)
   const [compare, setCompare] = useState(false)
@@ -280,9 +295,72 @@ export function ArticleEditor({
     }
   }
 
-  const publishedLanguages = languages.filter(
-    (item) => view.article[item].published,
+  const [confirming, setConfirming] = useState<'withdraw' | 'delete' | null>(
+    null,
   )
+
+  async function runLifecycle(action: 'withdraw' | 'delete') {
+    if (!view.id || anyDirty) return
+    setBusy(action)
+    setFeedback(null)
+    try {
+      if (action === 'withdraw') {
+        const result = await withdrawAdminArticle({
+          data: { id: view.id, revision: view.revision, language },
+        })
+        if (!result.ok) {
+          setFeedback({
+            kind: 'action-error',
+            message:
+              result.error === 'stale-write'
+                ? '文章已在其他页面修改，请刷新后重试'
+                : result.error === 'not-found'
+                  ? '文章已被删除，请返回文章列表'
+                  : '当前语言没有可撤下的公开版本，请刷新查看',
+          })
+          return
+        }
+        setView(result.view)
+        setFeedback({ kind: 'withdrawn', at: time(), language })
+      } else {
+        const result = await deleteAdminArticle({
+          data: { id: view.id, revision: view.revision },
+        })
+        if (!result.ok) {
+          setFeedback({
+            kind: 'action-error',
+            message:
+              result.error === 'still-published'
+                ? '仍有语言版本公开，请先撤下全部公开版本'
+                : result.error === 'stale-write'
+                  ? '文章已在其他页面修改，请刷新后重试'
+                  : result.error === 'not-found'
+                    ? '文章已被删除，请返回文章列表'
+                    : '无法确认删除结果，请刷新查看当前状态',
+          })
+          return
+        }
+        leaving.current = true
+        await navigate({ to: '/admin/posts', search: lastPostsSearch() })
+        leaving.current = false
+      }
+    } catch {
+      setFeedback({
+        kind: 'action-error',
+        message: `无法确认${action === 'withdraw' ? '撤下' : '删除'}结果，请刷新查看当前状态`,
+      })
+    } finally {
+      setBusy(null)
+      setConfirming(null)
+    }
+  }
+
+  const publishedLanguages = languages.filter(
+    (item) =>
+      view.article[item].published && !view.article[item].published.withdrawnAt,
+  )
+  const currentIsPublished = publishedLanguages.includes(language)
+
   const attached = ideaIds
     .map((id) => view.ideas.find((idea) => idea.id === id))
     .filter((idea) => idea !== undefined)
@@ -336,6 +414,28 @@ export function ArticleEditor({
                 ? '发布中文'
                 : '发布英文'}
           </button>
+          {view.id && currentIsPublished ? (
+            <button
+              type="button"
+              className="ui-button ad-danger-text"
+              disabled={busy !== null || anyDirty}
+              onClick={() => setConfirming('withdraw')}
+            >
+              {busy === 'withdraw'
+                ? '撤下中…'
+                : `撤下${languageName[language]}`}
+            </button>
+          ) : null}
+          {view.canDelete ? (
+            <button
+              type="button"
+              className="ui-button ad-danger-text"
+              disabled={busy !== null || anyDirty}
+              onClick={() => setConfirming('delete')}
+            >
+              {busy === 'delete' ? '删除中…' : '删除文章'}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -643,6 +743,22 @@ export function ArticleEditor({
           }}
         />
       ) : null}
+      <ConfirmDialog
+        open={confirming !== null}
+        title={
+          confirming === 'withdraw'
+            ? `撤下${languageName[language]}？`
+            : '永久删除这篇文章？'
+        }
+        description={
+          confirming === 'withdraw'
+            ? '公开页面和网站地图会移除这个语言版本；草稿和历史发布内容会保留，之后可以重新发布。'
+            : '只有中文和 English 都没有公开版本时才能删除。草稿、文章关联和图片引用会永久删除，此操作不能撤销。'
+        }
+        confirm={confirming === 'withdraw' ? '撤下' : '删除'}
+        onConfirm={() => confirming && void runLifecycle(confirming)}
+        onCancel={() => setConfirming(null)}
+      />
       {leaveDialog}
     </section>
   )
@@ -660,6 +776,18 @@ function FeedbackLine({ feedback }: { feedback: Feedback | null }) {
     return (
       <p role="status" className="ad-feedback ad-ok">
         {feedback.language === 'zh' ? '中文版' : '英文版'}已发布 {feedback.at}
+      </p>
+    )
+  if (feedback.kind === 'withdrawn')
+    return (
+      <p role="status" className="ad-feedback ad-ok">
+        {feedback.language === 'zh' ? '中文版' : '英文版'}已撤下 {feedback.at}
+      </p>
+    )
+  if (feedback.kind === 'action-error')
+    return (
+      <p role="alert" className="ad-feedback ad-error">
+        {feedback.message}
       </p>
     )
   if (feedback.kind === 'rejected')

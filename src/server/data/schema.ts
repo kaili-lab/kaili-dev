@@ -66,6 +66,7 @@ export const articleLanguages = sqliteTable(
     publishedTagsJson: text('published_tags_json').notNull().default('[]'),
     publishedAt: text('published_at'),
     publishedUpdatedAt: text('published_updated_at'),
+    withdrawnAt: text('withdrawn_at'),
   },
   (table) => [
     primaryKey({ columns: [table.articleId, table.language] }),

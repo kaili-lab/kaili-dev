@@ -8,12 +8,14 @@ const stateText: Record<VersionState, string> = {
   draft: '草稿',
   published: '已发布',
   modified: '已发布 · 有未发布修改',
+  withdrawn: '已撤下',
 }
 const stateClass: Record<VersionState, string> = {
   missing: 'ad-state ad-state-quiet',
   draft: 'ad-state ad-state-quiet',
   published: 'ad-state ad-state-live',
   modified: 'ad-state ad-state-live ad-state-modified',
+  withdrawn: 'ad-state ad-state-quiet',
 }
 
 export function stateLabel(state: VersionState) {

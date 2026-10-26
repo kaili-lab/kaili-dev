@@ -50,3 +50,5 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 2026-10-26 · D-175 取代 T7.5 的动态 OG 部分：删除逐文章 Satori / resvg、WASM、Cache API 与 `/og/...` 运行时生成链路，文章继续输出各自的 Open Graph 文本元数据，并共用随部署静态资源提供的 1200×630 站点分享图。旧模板、缓存行为和 179ms / 2ms 观测只作为历史取舍依据；Workers Free 的首次 OG CPU 测量和计费不再是部署前置。切换后门禁：check 449/449、build、dry-run 4230.43 KiB / gzip 882.12 KiB、生产 Playwright 120/120、后台 Playwright 46/46。
 
 2026-10-26 · T7.6 的已授权范围已完成：远端 D1 成功应用 `0000`–`0004` 且 `PRAGMA foreign_key_check` 无结果；Worker 版本 `d0ba5ba6-f5aa-4f28-8328-16553d03a391` 已部署到 `https://kaili-dev.nautilus1876.workers.dev`，清理 Cron 为 `17 3 * * *`。线上已验证中英文公开页、重定向、sitemap、静态 1200×630 PNG、OAuth 启动配置、后台鉴权、空 D1、R2 binding 与不存在媒体 404；浏览器无控制台错误和横向溢出。`kaili.dev` 域名、DNS / route 与生产 OAuth App 回调切换未获授权，未执行；隐私正文、Idea 和真实图片未上传。
+
+2026-10-27 · T5.7 文章撤下与删除完成（D-176 ~ D-180）：中英文公开版本可独立撤下并恢复；所有语言无公开版本后才允许永久删除；撤下媒体保留私有引用；D1 迁移、taxonomy trigger、媒体清理、公开页 / sitemap / 中立链接和 revision 并发保护已覆盖。OpenCode DeepSeek v4.1 Flash 复核无 Critical / High；最终 `pnpm check` 458/458、后台 Playwright 47/47、build、dry-run（4240.38 KiB / gzip 884.00 KiB）。生产域名、生产 OAuth 回调和真实内容仍未切换。

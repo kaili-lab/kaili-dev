@@ -61,7 +61,7 @@ export function taxonomyUsage(
         : article.tags.includes(slug)
     const snapshots = (['zh', 'en'] as const).filter((language) => {
       const snapshot = article[language].published
-      if (!snapshot) return false
+      if (!snapshot || snapshot.withdrawnAt) return false
       return kind === 'categories'
         ? snapshot.category === slug
         : snapshot.tags.includes(slug)
@@ -78,8 +78,10 @@ export type AdminRow = {
   zh: VersionState
   en: VersionState
   category?: string
-  /** Later of the two first-publish times (D-158 ①). */
+  /** Later of the active language publish times. */
   publishedAt?: string
+  /** Later withdrawal time when no active language is published. */
+  withdrawnAt?: string
   savedAt: string
 }
 
@@ -91,7 +93,14 @@ export function adminRow(
   const title = (language: Language) =>
     article[language].draft?.title.trim() || article[language].published?.title
   const published = (['zh', 'en'] as const)
-    .map((language) => article[language].published?.publishedAt)
+    .map((language) => article[language].published)
+    .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
+      Boolean(snapshot && !snapshot.withdrawnAt),
+    )
+    .map((snapshot) => snapshot.publishedAt)
+    .sort()
+  const withdrawn = (['zh', 'en'] as const)
+    .map((language) => article[language].published?.withdrawnAt)
     .filter((value): value is string => Boolean(value))
     .sort()
   return {
@@ -101,6 +110,7 @@ export function adminRow(
     en: versionState(article, 'en'),
     category: article.category,
     publishedAt: published.at(-1),
+    withdrawnAt: published.length === 0 ? withdrawn.at(-1) : undefined,
     savedAt,
   }
 }
@@ -110,7 +120,12 @@ export function sortAdminRows(rows: readonly AdminRow[]): AdminRow[] {
   return [...rows].sort((left, right) => {
     if (!left.publishedAt !== !right.publishedAt)
       return left.publishedAt ? 1 : -1
-    if (!left.publishedAt) return right.savedAt.localeCompare(left.savedAt)
+    if (!left.publishedAt)
+      return (
+        (right.withdrawnAt ?? right.savedAt).localeCompare(
+          left.withdrawnAt ?? left.savedAt,
+        ) || left.id.localeCompare(right.id)
+      )
     return (
       right.publishedAt!.localeCompare(left.publishedAt!) ||
       left.id.localeCompare(right.id)
@@ -136,12 +151,13 @@ export function sortIdeas<
 export const PAGE_SIZE = 15
 
 export type ArticleStatusFilter =
-  'all' | 'pending' | 'published' | 'unpublished'
+  'all' | 'pending' | 'published' | 'unpublished' | 'withdrawn'
 export const articleStatusFilters: readonly ArticleStatusFilter[] = [
   'all',
   'pending',
   'published',
   'unpublished',
+  'withdrawn',
 ]
 
 /** A page number from the address: anything but a positive integer is 1. */
@@ -187,7 +203,10 @@ export function filterAdminRows<T extends AdminRow>(
     if (filter.status === 'pending')
       return states.some((state) => state === 'draft' || state === 'modified')
     if (filter.status === 'published') return states.some(live)
-    if (filter.status === 'unpublished') return !states.some(live)
+    if (filter.status === 'unpublished')
+      return states.every((state) => state === 'missing' || state === 'draft')
+    if (filter.status === 'withdrawn')
+      return states.some((state) => state === 'withdrawn')
     return true
   })
 }

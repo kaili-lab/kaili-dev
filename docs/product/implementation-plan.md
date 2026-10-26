@@ -33,6 +33,7 @@
 | T5.3b / T5.3c / T5.4 后台 | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：方案 84 张截图、选定列表 B + 编辑器 B（D-159）、design.md §9 管理端；后台（开发环境假登录 Kai Li）、CodeMirror 编辑器、Idea、分类标签；开发服务器 e2e 31/31（含 R-SEO-04/05 中英文联验、T6.1 联验、绕过表单、请求期间编辑、离开提示）；生产不可达。GPT 第 4 轮复核通过。证据 `docs/notes/2026-10-14-T5.3-T5.4.md` |
 | T5.5 后台改为传统布局（D-161 ~ D-163） | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：左侧导航、表格 + 分页（每页 15 条，页码与筛选在网址参数）、编辑器右侧边栏、对照另一种语言、编辑 / 分栏 / 预览、Base UI 弹窗替代 `window.confirm`、主题滚动条、页脚去字体说明。check 431/431、build、dry-run、生产 Playwright 122/122、后台 36/36。GPT 第 2 轮复核通过（第 1 轮 4 项 P2、2 项 P3 已关闭）。证据 `docs/notes/2026-10-14-gates-output-13.txt`、`docs/notes/2026-10-14-T5.5-review-r*.md` |
 | T5.6 Idea 列表与详情（D-164） | Claude 执行 / GPT-6.1 Sol 复核 | ✅ 已完成：快速输入「保存」并入输入框上方一行并支持 ⌘Enter；列表内容单行省略、可点击；详情页默认预览（`?mode=edit` 编辑），显示时间、关联文章、「用它写文章」「删除」。check 431/431、build、dry-run、生产 Playwright 122/122、后台 39/39。GPT 第 3 轮复核通过。证据 `docs/notes/2026-10-14-gates-output-16.txt`、`docs/notes/2026-10-14-T5.6-review-r*.md` |
+| T5.7 文章撤下与删除（D-176） | Claude 执行 / Cursor Opus 5.5 方案评审 / OpenCode DeepSeek v4.1 Flash 代码复核 | ✅ 已完成：按语言撤下并可恢复；所有语言均撤下或从未发布后才允许永久删除；withdrawn 媒体私有引用、D1 级联与七天清理、sitemap、公开页、中立链接和 revision 并发保护均通过。最终 `pnpm check` 458/458、生产 Playwright 47/47、build、dry-run（4240.38 KiB / gzip 884.00 KiB）；复核无 Critical / High。 |
 | T6.2 站内客户端跳转（D-165） | GPT-6.1 Sol 起手（中途停止）/ Claude 接手完成 / GPT-6.1 Sol 复核 | ✅ 已完成：公开站站内链接改为客户端跳转（`K2Link` + `isClientPageHref`），切换筛选、导航不再整页刷新和字体抖动；语言切换保留 D-036 / D-142，提示离开地址即清除；筛选链接按实时地址生成（修复复核中发现的连续点击丢条件竞态）。check 447/447、build、dry-run、生产 Playwright 连续 3 次 125/125、后台 39/39。GPT 第 3 轮复核通过。证据 `docs/notes/2026-10-14-gates-output-19.txt`、`docs/notes/2026-10-14-T6.2-review-r*.md` |
 | T2.7 暖白默认配色（D-169） | Claude 规格 / Gemini 3.8 Flash 子代理执行 / GPT-6.1 Sol 复核 | ✅ 已完成：默认暖白浅深两套、开发切换器、`.prose th` 次墨线、规范 / audit、OG 黄金哈希。提交前发现开发环境初始化脚本拼接报错，已修复并增加刷新恢复的浏览器回归。check 452/452、build、dry-run、生产 Playwright 125/125、后台 40/40 通过；原两轮复核见 `docs/notes/2026-10-25-T2.7-review-r*.md`，新增脚本修复及回归由 GPT-6.1 Sol 再次独立复核，无代码阻塞。只冻结 D-169 配色，不代表 P2 / P3 全站视觉基准批准。 |
 | T6.1 基础 SEO 联验与网站地图 | Claude 执行 / GPT-6.1 Sol 复核（D-150） | ✅ 已完成：`/sitemap.xml` 只含公开正式页，hreflang 与页面一致，XML 经真实解析；保存发布联验（保存不变、首次发布只新增该语言页、再发布更新 lastmod、另一语言不变）在后台 e2e 完成；GPT 第 5 轮复核通过。证据 `docs/notes/2026-10-14-T6.1.md` |
@@ -172,3 +173,5 @@ GPT 主动提供复核材料与目标：「复核 Tx.x 的产出；读取需求�
 T7.1–T7.4 已完成；T7.5 的媒体清理保持完成，动态 OG 部分按 D-175 收缩为 Open Graph 文本元数据与静态站点分享图。历史动态模板、实现与 CPU 观测保留在文档中，不再作为现行部署前置。
 
 Kai Li 已授权远端空 D1 迁移和 `workers.dev` 部署验收，但未授权 `kaili.dev` 域名替换、DNS / route 变更或生产 OAuth 回调切换。先完成 D-175 切换门禁与独立复核，再执行远端迁移和无域名部署。
+
+自动部署顺序：GitHub Actions 先运行 `pnpm check`，再执行 `pnpm exec wrangler d1 migrations apply kaili-dev --remote`，最后构建并部署 Worker。新增 D1 列或 trigger 时不得让代码先于迁移上线。

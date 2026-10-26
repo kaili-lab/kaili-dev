@@ -44,6 +44,9 @@ describe('D1 migration chain', () => {
         '0002_media_reference_guard.sql',
         '0003_live_media_reference.sql',
         '0004_concurrency_taxonomy_guards.sql',
+        '0005_article_withdrawal.sql',
+        '0006_withdrawn_taxonomy.sql',
+        '0007_withdrawn_guards.sql',
       ])
         database.exec(migration(name))
 
@@ -88,6 +91,79 @@ describe('D1 migration chain', () => {
           )
           .run(),
       ).toThrow(/article taxonomy is unavailable/)
+      database.exec(`
+        INSERT INTO taxonomy_entries (kind, slug, zh, en)
+        VALUES ('categories', 'withdrawn-category', '撤下分类', 'Withdrawn category'),
+               ('tags', 'withdrawn-tag', '撤下标签', 'Withdrawn tag');
+        INSERT INTO article_languages
+          (article_id, language, published_title, published_summary, published_body,
+           published_images_json, published_category, published_tags_json,
+           published_at, published_updated_at, withdrawn_at)
+        VALUES
+          ('article-1', 'en', 'Old', 'Old', 'Old', '[]', 'withdrawn-category',
+           '["withdrawn-tag"]', '2026-01-01', '2026-01-01', '2026-02-01');
+        UPDATE articles SET category = 'engineering', tags_json = '[]'
+        WHERE id = 'article-1';
+      `)
+      expect(() =>
+        database
+          .prepare(
+            `DELETE FROM taxonomy_entries
+             WHERE kind = 'categories' AND slug = 'withdrawn-category'`,
+          )
+          .run(),
+      ).not.toThrow()
+      expect(() =>
+        database
+          .prepare(
+            `DELETE FROM taxonomy_entries
+             WHERE kind = 'tags' AND slug = 'withdrawn-tag'`,
+          )
+          .run(),
+      ).not.toThrow()
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO media_references
+             (object_key, article_id, language, visibility)
+             VALUES ('object-1', 'article-1', 'en', 'withdrawn')`,
+          )
+          .run(),
+      ).not.toThrow()
+      database.exec(`
+        INSERT INTO articles (id, slug, category, saved_at)
+        VALUES ('article-2', 'live-check', NULL, '2026-01-01');
+      `)
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO article_languages
+             (article_id, language, published_title, published_summary,
+              published_body, published_images_json, published_category,
+              published_tags_json, published_at, published_updated_at)
+             VALUES ('article-2', 'zh', '标题', '摘要', '正文', '[]',
+                     'missing-category', '[]', '2026-01-01', '2026-01-01')`,
+          )
+          .run(),
+      ).toThrow(/published taxonomy is unavailable/)
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO media_references
+             (object_key, article_id, language, visibility)
+             VALUES ('object-1', 'article-1', 'fr', 'withdrawn')`,
+          )
+          .run(),
+      ).toThrow(/invalid media reference slot/)
+      expect(() =>
+        database
+          .prepare(
+            `INSERT INTO media_references
+             (object_key, article_id, language, visibility)
+             VALUES ('object-1', 'article-1', 'en', 'bogus')`,
+          )
+          .run(),
+      ).toThrow(/invalid media reference slot/)
     } finally {
       database.close()
     }
