@@ -12,6 +12,8 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 | `architecture-notes.md` | 技术架构事实、方案比较、验证结果与未决技术问题 | 随讨论更新 |
 | `design.md` | 设计规范：颜色、字体、版面、组件、禁止项（D-111）。新页面先读它 | 随设计讨论更新 |
 | `implementation-plan.md` | 实施阶段的任务拆分：每个任务由谁做（GPT / Sonnet / Opus / Kai Li）和验收标准 | 随进度更新 |
+| `ai-coding-quality.md` | AI coding 质量约束的概念框架、现状证据和候选实施路线；先理解各部分作用，再逐项实施 | 实施前核对现状，完成后更新证据；不自动升级为强制门禁 |
+| `ai-integration-requirements.md` | AI 接入层需求讨论稿：用户要求、设计补充、风险边界、待裁决问题和 review 记录；接入层与 slug 候选均属 v2（D-094 / D-182）；第一阶段绑定语义 slug 候选作为唯一场景（待裁决） | Kai Li review 后同步到 requirements / decisions |
 
 不公开的思考与学习记录放在 `docs/notes/`（已加入 `.gitignore`，D-125），用作以后写文章的素材。
 
@@ -52,3 +54,7 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 2026-10-26 · T7.6 的已授权范围已完成：远端 D1 成功应用 `0000`–`0004` 且 `PRAGMA foreign_key_check` 无结果；Worker 版本 `d0ba5ba6-f5aa-4f28-8328-16553d03a391` 已部署到 `https://kaili-dev.nautilus1876.workers.dev`，清理 Cron 为 `17 3 * * *`。线上已验证中英文公开页、重定向、sitemap、静态 1200×630 PNG、OAuth 启动配置、后台鉴权、空 D1、R2 binding 与不存在媒体 404；浏览器无控制台错误和横向溢出。`kaili.dev` 域名、DNS / route 与生产 OAuth App 回调切换未获授权，未执行；隐私正文、Idea 和真实图片未上传。
 
 2026-10-27 · T5.7 文章撤下与删除完成（D-176 ~ D-180）：中英文公开版本可独立撤下并恢复；所有语言无公开版本后才允许永久删除；撤下媒体保留私有引用；D1 迁移、taxonomy trigger、媒体清理、公开页 / sitemap / 中立链接和 revision 并发保护已覆盖。OpenCode DeepSeek v4.1 Flash 复核无 Critical / High；最终 `pnpm check` 458/458、后台 Playwright 47/47、build、dry-run（4240.38 KiB / gzip 884.00 KiB）。生产域名、生产 OAuth 回调和真实内容仍未切换。
+
+2026-10-27 · 质量约束讨论整理见 [ai-coding-quality.md](ai-coding-quality.md)：记录 A–F 框架、当前 CI / 迁移 / 后台能力、Cursor Opus 5.5 medium 的方法复核及分步实施候选项。本轮只记录文档，未新增检查、变更流水线或执行部署；候选项不视为已实施。
+
+2026-10-27 · AI 接入层需求定稿并拆卡（D-182 ~ D-186）：AI slug 候选与接入层属 v2 并提前排期，v1 slug 只手填；需求稿见 [ai-integration-requirements.md](ai-integration-requirements.md)，任务卡见 implementation-plan.md 的 P8（T8.0 主密钥已由 Kai Li 写入本地 `.dev.vars`）。任务卡经 OpenCode DeepSeek v4.1 Flash 四轮只读审核，结论为可交付执行；T8.1–T8.5 由 Kai Li 在 omp 中按顺序交其他模型执行，完成后 Claude 做 T8.6 验收。本轮未改代码、未部署。

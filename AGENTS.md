@@ -24,8 +24,6 @@ pnpm format                       # Prettier 写入（docs/ 不参与格式化�
 
 完成任何实现任务，附上 `pnpm check`、`pnpm build`、`wrangler deploy --dry-run` 的原始输出。
 
-执行由 Claude 负责；完成任务并取得适用的验收证据后，自动交给 omp 的 GPT-6.1 Sol 独立只读复核（`omp -p --model gpt/gpt-6.1-sol`，配置同 `review-gpt`）。不询问是否复核，也不以「待复核」结束任务；修正问题并重新验证后，继续交复核。验收或复核尚未通过时，不得把任务或相关 todo 标成完成（D-144 / D-150）。
-
 ## 不能破的规则
 
 - 不得读取、搜索、输出或让工具返回 `.dev.vars` 的内容；排查本地配置时只核对变量名或让 Kai Li 自行确认，生产 secret 只用 `wrangler secret list` 核对名称，不读取值。

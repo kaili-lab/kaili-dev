@@ -617,3 +617,25 @@
 **D-179** · 撤下不解除文章 slug 锁定。文章重新发布仍使用原公开地址；需要换 slug 时删除文章后重新创建，不在 v1 增加 redirect 或 URL 历史记录。
 
 **D-180** · 撤下不更新文章 `savedAt`；后台列表中没有活跃公开版本的文章按最近撤下时间排序并显示「撤下于」，从未发布文章仍按保存时间排序。部分撤下文章仍可同时出现在「已发布」和「已撤下」筛选中。
+
+---
+
+2026-10-27 · 会话结束：按 Kai Li 要求记录 AI coding 质量约束方法与候选实施路线，见 [ai-coding-quality.md](ai-coding-quality.md)。讨论顺序与质量框架经 Cursor Opus 5.5 medium 基于所提供材料只读复核；本轮未实施新增门禁，也未授权迁移、部署或视觉基准更新。
+
+2026-10-27 · 语义 slug 规则
+
+**D-181** · 文章继续使用一个中英文共享的 slug。中文文章不默认使用拼音，而是优先使用面向国际读者的英文语义 slug。slug 可以在首次发布前自动生成，Kai Li 可以修改；AI 只提供可选候选，不覆盖用户输入、不阻塞保存或发布，候选仍必须通过本地格式、长度、保留词和唯一性检查。任一语言首次发布后 slug 锁定；标题或另一语言内容变化不自动修改公开 URL。
+
+**D-182** · D-181 中“AI 提供 slug 候选”随全部 AI 功能进入 v2，补入 D-094 的 v2 清单；D-087 AI 模型配置仍按 D-094 留在 v2，不提前实施。v1 中 slug 由 Kai Li 填写或按 D-181 的非 AI 方式在首次发布前生成，D-181 的本地检查、不覆盖用户输入和首次发布后锁定规则不变。`ai-integration-requirements.md` 中的接入层与 slug 候选因此都属于 v2；v2 第一个 AI 场景是否为 slug 候选仍待讨论，实施前仍须按 D-090 写任务卡。
+
+**D-183** · v1 中文章 slug 只由 Kai Li 手填，不做非 AI 的自动生成（supersedes D-181 中“slug 可以在首次发布前自动生成”在 v1 的适用，以及 D-182 中“或按 D-181 的非 AI 方式在首次发布前生成”）。D-181 的英文语义 slug 方向、本地格式与唯一性检查、首次发布后锁定规则不变；v2 的 AI 候选按 D-182。
+
+**D-184** · AI 接入层（D-087 的实现，按 `ai-integration-requirements.md` 修订）在 v1 生产切换之前开始实施。v1 的 `kaili.dev` 域名、DNS / route 与生产 OAuth 回调切换暂缓，原因是 Projects、Reading 等页面内容尚未定稿；D-094 的版本归属不变，只是 v2 的这一部分提前排期。先做接入层，后台“测试连接”和“查询模型”作为接入层最先的调用方，AI slug 候选作为第一个业务场景排在最后。
+
+**D-185** · AI 接入层第一版决定（解决 `ai-integration-requirements.md` §7 第 2–7 问，D-087 由 3.1 的“连接 + 模型”结构替代）：① 只支持 OpenAI-compatible API（`/v1/models`、`/v1/chat/completions`），代码按 S-06 保留适配层；不依赖供应商对 JSON schema 参数的支持，模型输出由本地解析和校验。② API key 用应用主密钥加密后存 D1（S-01 方案 A）：只用标准 Web Crypto AES-GCM，不用 Cloudflare 专有 API，以便迁出平台；主密钥放 Cloudflare Secret，由 Kai Li 在平台外另存备份；丢失主密钥时重新录入各 key。③ 数据类别按 S-04 候选分类执行，新连接默认只允许 `public`。④ 第一个场景为语义 slug 候选。⑤ 多个连接按优先级依次尝试，不记冷却。⑥ slug 候选只在 Kai Li 点击按钮时调用（点击即确认），发送当前语言的标题与摘要，不发送正文；摘要为空时按钮不可用并提示先填摘要。生成发生在首次发布前，内容属于 `draft` 类别，因此只能使用允许 `draft` 的连接。
+
+**D-186** · 开发分工（supersedes D-144 / D-150 的“执行与复核”安排，D-174 一并失效）：Claude（Opus 5.5）负责调研、规划、拆任务卡和最终代码验收；任务卡交 omp 的 OpenCode DeepSeek v4.1 Flash（`opencode-go/deepseek-v4.1-flash`）只读审核后，由 Kai Li 交给其他模型逐张执行；全部执行完后 Claude 对照任务卡看代码、运行 `pnpm check`、`pnpm build`、`wrangler deploy --dry-run` 验收。验收未通过不得标成完成。
+
+---
+
+2026-10-27 · 会话结束：AI 接入层需求经 Claude review 与 GPT-6.1 Sol 复核后定稿，记录 D-182 ~ D-186；P8 任务卡（T8.0–T8.6）经 OpenCode DeepSeek v4.1 Flash 四轮只读审核通过。未实施代码、未执行迁移或部署。
