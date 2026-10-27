@@ -309,6 +309,49 @@
     align-items: center;
     gap: 6px;
   }
+  /* Label row on top, controls stretched to one shared height. */
+  .ad-add-model {
+    align-items: stretch;
+  }
+  .ad-add-model .ad-field {
+    grid-template-rows: auto 1fr;
+  }
+  /* Only the model ID input gives way on narrow screens. */
+  .ad-add-model .ad-field:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .ad-add-model .ad-field:not(:first-child) {
+    flex: none;
+  }
+  .ad-pick-table td {
+    vertical-align: middle;
+  }
+  .ad-nowrap {
+    white-space: nowrap;
+  }
+  .ad-table .ad-select-auto {
+    width: auto;
+  }
+  .ad-dialog:has(.ad-pick-table) {
+    width: min(560px, calc(100vw - 32px));
+  }
+  .ad-order {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ad-order li {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .ad-order-no {
+    color: var(--mute);
+    font-family: var(--num);
+  }
   .ad-tabs {
     display: flex;
     gap: 4px;

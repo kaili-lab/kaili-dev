@@ -80,29 +80,54 @@ test('tests successful and failing connections without writing models', async ({
   ).toHaveCount(1)
 })
 
-test('queries models into a checklist and adds only the selected ones', async ({
+test('queries models into a dialog and adds only the selected ones', async ({
   page,
 }) => {
   await open(page, '/admin/ai/ai-backup')
   await page.getByRole('button', { name: '查询模型' }).click()
-  await expect(page.getByRole('status')).toHaveText('模型查询完成')
-  await expect(page.getByLabel('选择 mock-chat')).toBeVisible()
-  await expect(page.getByLabel('选择 mock-json')).toHaveCount(0)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('选择 mock-chat')).toBeVisible()
+  await expect(dialog).toContainText('mock-chat')
+  await expect(dialog).not.toContainText('mock-json')
   await expect(
-    page.getByRole('cell', { name: 'mock-chat', exact: true }),
+    page
+      .locator('table:not(.ad-pick-table)')
+      .getByRole('cell', { name: 'mock-chat', exact: true }),
   ).toHaveCount(0)
 
-  await page.getByLabel('选择 mock-chat').check()
-  await page.getByRole('button', { name: '添加所选模型' }).click()
+  await dialog.getByLabel('选择 mock-chat').check()
+  await dialog.getByRole('button', { name: '添加所选模型' }).click()
+  await expect(dialog).toBeHidden()
   await expect(
     page.getByRole('cell', { name: 'mock-chat', exact: true }),
   ).toHaveCount(1)
 
   await page.getByRole('button', { name: '查询模型' }).click()
-  await expect(page.getByText('没有新的模型')).toBeVisible()
+  await expect(dialog.getByText('没有新的模型')).toBeVisible()
+  await dialog.getByRole('button', { name: '取消' }).click()
+  await expect(dialog).toBeHidden()
   await expect(
     page.getByRole('cell', { name: 'mock-json', exact: true }),
   ).toHaveCount(1)
+})
+
+test('saving an existing platform returns to the list', async ({ page }) => {
+  await open(page, '/admin/ai/ai-backup')
+  await page.getByRole('button', { name: '保存平台' }).click()
+  await expect(page).toHaveURL(/\/admin\/ai$/)
+})
+
+test('list shows the last test time in a minute-precision stamp', async ({
+  page,
+}) => {
+  await open(page, '/admin/ai/ai-backup')
+  await page.getByRole('button', { name: '测试连接' }).click()
+  await expect(page.getByRole('status')).toHaveText('测试成功')
+  await open(page, '/admin/ai')
+  await expect(connectionRow(page, '备用中转')).toContainText(
+    /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/,
+  )
 })
 
 test('manual model type is prefilled from the model id', async ({ page }) => {
@@ -220,7 +245,7 @@ test('platforms restricted to published content cannot receive a draft', async (
     await open(page, `/admin/ai/${id}`)
     await page.getByLabel('文章草稿').uncheck()
     await page.getByRole('button', { name: '保存平台' }).click()
-    await expect(page.getByRole('status')).toHaveText('平台已保存')
+    await expect(page).toHaveURL(/\/admin\/ai$/)
   }
 
   await open(page, '/admin/posts/new')
@@ -256,6 +281,14 @@ for (const width of [1440, 820, 390]) {
           fullPage: true,
         })
       }
+
+      await page.getByRole('button', { name: '查询模型' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await noOverflow(page)
+      await page.screenshot({
+        path: testInfo.outputPath(`ai-discover-${width}-${colorScheme}.png`),
+        fullPage: true,
+      })
     })
   }
 }
