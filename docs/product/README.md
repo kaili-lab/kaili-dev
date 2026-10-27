@@ -58,3 +58,5 @@ kaili.dev 新版（portfolio + blog）的需求讨论会跨多个会话进行。
 2026-10-27 · 质量约束讨论整理见 [ai-coding-quality.md](ai-coding-quality.md)：记录 A–F 框架、当前 CI / 迁移 / 后台能力、Cursor Opus 5.5 medium 的方法复核及分步实施候选项。本轮只记录文档，未新增检查、变更流水线或执行部署；候选项不视为已实施。
 
 2026-10-27 · AI 接入层需求定稿并拆卡（D-182 ~ D-186）：AI slug 候选与接入层属 v2 并提前排期，v1 slug 只手填；需求稿见 [ai-integration-requirements.md](ai-integration-requirements.md)，任务卡见 implementation-plan.md 的 P8（T8.0 主密钥已由 Kai Li 写入本地 `.dev.vars`）。任务卡经 OpenCode DeepSeek v4.1 Flash 四轮只读审核，结论为可交付执行；T8.1–T8.5 由 Kai Li 在 omp 中按顺序交其他模型执行，完成后 Claude 做 T8.6 验收。本轮未改代码、未部署。
+
+2026-10-27 · T8.1–T8.5 已执行并经 Claude 验收：`/admin/ai` 连接与模型管理、AES-GCM 加密存 key、按优先级切换的调用器、编辑器「生成候选」按钮均已实现。验收修正一处（错误主密钥解密失败改为返回 `config`，补回归测试）。门禁：check 559/559、build、dry-run（4319.41 KiB / gzip 900.04 KiB）、后台 Playwright 62/62；构建产物与测试输出无明文 key 和假上游。剩余 T8.6 的 Kai Li 部分：真实中转手测、生产 secret、远端迁移 `0008` 与部署。代码未提交。

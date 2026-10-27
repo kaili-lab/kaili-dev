@@ -1,6 +1,8 @@
 import { env } from 'cloudflare:workers'
 
 import { createGitHubSession } from '#/features/github-auth.server'
+import { encryptSecret, maskSecret } from '#/features/ai-secrets'
+import { createConnection, createModel, resetAiStores } from '#/server/data/ai'
 import { SESSION_MAX_AGE } from '#/server/auth-session'
 import {
   getStoredArticle,
@@ -18,7 +20,7 @@ import {
   type MediaBucket,
 } from '#/server/data/media'
 
-const fixtures = ['default', 'en-only', 'empty', 'many'] as const
+const fixtures = ['default', 'en-only', 'empty', 'many', 'ai'] as const
 
 async function addMany(database: D1Database) {
   const at = (index: number) =>
@@ -217,12 +219,65 @@ export async function verifyMediaCleanupBoundary(): Promise<boolean> {
   )
 }
 
+async function addAiFixture(database: D1Database) {
+  const apiKey = 'sk-test-0000'
+  const keyMask = maskSecret(apiKey)
+  const createdAt = '2026-10-27T00:00:00.000Z'
+  const masterKey = env.AI_MASTER_KEY ?? ''
+  const primarySecret = await encryptSecret(apiKey, masterKey)
+  const backupSecret = await encryptSecret(apiKey, masterKey)
+
+  await createConnection(database, {
+    id: 'ai-primary',
+    name: '主中转',
+    baseURL: 'https://ai-mock.test/down/v1',
+    priority: 1,
+    enabled: true,
+    dataClasses: ['public', 'draft'],
+    secret: { ...primarySecret, keyMask },
+    createdAt,
+    updatedAt: createdAt,
+  })
+  await createConnection(database, {
+    id: 'ai-backup',
+    name: '备用中转',
+    baseURL: 'https://ai-mock.test/ok/v1',
+    priority: 2,
+    enabled: true,
+    dataClasses: ['public', 'draft'],
+    secret: { ...backupSecret, keyMask },
+    createdAt,
+    updatedAt: createdAt,
+  })
+  await createModel(database, {
+    id: 'ai-primary-mock-json',
+    connectionId: 'ai-primary',
+    providerModelId: 'mock-json',
+    capabilities: ['chat', 'structured-output'],
+    enabled: true,
+    source: 'discovered',
+    createdAt,
+  })
+  await createModel(database, {
+    id: 'ai-backup-mock-json',
+    connectionId: 'ai-backup',
+    providerModelId: 'mock-json',
+    capabilities: ['chat', 'structured-output'],
+    enabled: true,
+    source: 'discovered',
+    createdAt,
+  })
+}
+
 /** Development / e2e only: restore every local D1 fixture. */
 export async function resetStores(fixture: string): Promise<boolean> {
   if (!fixtures.includes(fixture as (typeof fixtures)[number])) return false
   const database = await runtimeDatabase()
   const articleFixture =
-    fixture === 'many' ? 'default' : (fixture as StoreFixture)
+    fixture === 'many' || fixture === 'ai'
+      ? 'default'
+      : (fixture as StoreFixture)
+  await resetAiStores(database)
   // Referenced taxonomy cannot be deleted. Empty articles first, reset the
   // shared stores, then rebuild the requested article fixture.
   await resetArticles(database, 'empty')
@@ -232,5 +287,6 @@ export async function resetStores(fixture: string): Promise<boolean> {
   await resetTaxonomy(database)
   await resetArticles(database, articleFixture)
   if (fixture === 'many') await addMany(database)
+  if (fixture === 'ai') await addAiFixture(database)
   return true
 }

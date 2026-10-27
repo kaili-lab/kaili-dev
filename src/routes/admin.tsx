@@ -51,7 +51,9 @@ function AdminLayout() {
     ? 'ideas'
     : pathname.startsWith('/admin/taxonomy')
       ? 'taxonomy'
-      : 'posts'
+      : pathname.startsWith('/admin/ai')
+        ? 'ai'
+        : 'posts'
   return (
     <AdminShell user={user} section={section}>
       <Outlet />

@@ -45,8 +45,8 @@
 | T7.6 workers.dev 部署与验收 | 执行者 / Kai Li | ✅ 已授权范围完成：远端 D1 `0000`–`0004` 已应用，Worker 版本 `d0ba5ba6-f5aa-4f28-8328-16553d03a391` 部署到 `https://kaili-dev.nautilus1876.workers.dev`；公开页、SEO/sitemap、静态分享图、空 D1、R2、GitHub OAuth 可配置性、后台鉴权和 Cron 已在线验收。未替换 `kaili.dev`，未改 DNS / custom domain / route，未切生产 OAuth 回调 |
 | 质量约束方法文档（非功能实施任务） | GPT 整理 / Cursor Opus 5.5 medium 方法复核 | 已记录框架与候选路线，见 [ai-coding-quality.md](ai-coding-quality.md)；后续按现状与风险逐项选择，本轮未实施门禁、未改变 T7 状态或部署授权。 |
 | T8.0 主密钥与测试连接 | Kai Li | 本地 `.dev.vars` 已写入 `AI_MASTER_KEY`；生产 secret 与测试连接留到部署和 T8.6 |
-| T8.1 – T8.5 AI 接入层与 slug 候选 | 其他模型执行 / Claude 验收（D-186） | 任务卡已拆，OpenCode DeepSeek v4.1 Flash 四轮审核通过，待按顺序执行（见 P8） |
-| T8.6 最终验收 | Claude / Kai Li | 未开始 |
+| T8.1 – T8.5 AI 接入层与 slug 候选 | 其他模型执行 / Claude 验收（D-186） | ✅ 已执行并经 Claude 验收（2026-10-27）。验收中修正一处：主密钥格式正确但无法解密已存密文时，调用器原先抛出未捕获异常，现返回 `config` 并记一条调用，补回归测试。未提交、未推送 |
+| T8.6 最终验收 | Claude / Kai Li | Claude 部分 ✅：check 559/559、build、dry-run、后台 Playwright 62/62；`dist` 与测试输出中无 `sk-test-0000` / `ai-mock.test` / `mockFetch`；无新依赖，分层 lint 通过。**待 Kai Li：**真实中转连接手测；生产 `AI_MASTER_KEY`、远端迁移 `0008` 与部署（推送 `main` 即触发）由 Kai Li 决定 |
 
 规则：
 

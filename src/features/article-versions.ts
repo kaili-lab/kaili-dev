@@ -66,7 +66,7 @@ export type Context = {
 export type Result =
   { ok: true; article: Article } | { ok: false; errors: ValidationError[] }
 
-const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/
+export const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/
 
 // D-156 ⑤: Unicode white space (String#trim) plus zero-width characters.
 const ZERO_WIDTH = /[\u200b-\u200d\u2060\ufeff]/g

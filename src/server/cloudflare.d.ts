@@ -20,6 +20,7 @@ declare module 'cloudflare:workers' {
     GITHUB_CLIENT_SECRET?: string
     GITHUB_ALLOWED_USER_ID?: string
     SESSION_SECRET?: string
+    AI_MASTER_KEY?: string
   }
 }
 

@@ -44,7 +44,7 @@ export function AdminShell({
   children,
 }: {
   user: string
-  section: 'posts' | 'ideas' | 'taxonomy'
+  section: 'posts' | 'ideas' | 'taxonomy' | 'ai'
   children: ReactNode
 }) {
   // Marks the moment event handlers are attached; e2e tests wait for it.
@@ -68,6 +68,9 @@ export function AdminShell({
           </Link>
           <Link to="/admin/taxonomy" aria-current={current('taxonomy')}>
             分类与标签
+          </Link>
+          <Link to="/admin/ai" aria-current={current('ai')}>
+            AI 接入
           </Link>
         </nav>
         <span className="ad-nav-side">

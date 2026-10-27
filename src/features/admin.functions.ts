@@ -189,7 +189,7 @@ async function editorView(
 export type EditorView = Awaited<ReturnType<typeof editorView>>
 
 const emptyArticle = (): Article => ({ tags: [], zh: {}, en: {} })
-async function takenSlugs(database: D1Database, id: string | null) {
+export async function takenSlugs(database: D1Database, id: string | null) {
   return new Set(
     (await listStoredArticles(database))
       .filter((record) => record.id !== id && record.article.slug)

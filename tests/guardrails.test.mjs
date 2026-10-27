@@ -1,4 +1,7 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import { ESLint } from 'eslint'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const eslint = new ESLint()
@@ -7,6 +10,14 @@ async function rules(code, filePath = 'src/routes/guardrail-example.tsx') {
   return results.flatMap((result) =>
     result.messages.map((message) => message.ruleId),
   )
+}
+
+function sourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) return sourceFiles(path)
+    return ['.ts', '.tsx'].includes(extname(path)) ? [path] : []
+  })
 }
 
 describe('D-127: UI cannot import the data layer', () => {
@@ -119,5 +130,32 @@ describe('D-128 / D-129: Tailwind restrictions', () => {
         'src/components/design-catalogue.tsx',
       ),
     ).toContain(rule)
+  })
+})
+
+describe('T8.3 development AI mock isolation', () => {
+  it('keeps ai-mock.server out of the static src module graph', () => {
+    const staticReferences = []
+    for (const file of sourceFiles('src')) {
+      const source = ts.createSourceFile(
+        file,
+        readFileSync(file, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        extname(file) === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+      )
+      for (const statement of source.statements) {
+        if (
+          (ts.isImportDeclaration(statement) ||
+            ts.isExportDeclaration(statement)) &&
+          statement.moduleSpecifier &&
+          ts.isStringLiteral(statement.moduleSpecifier) &&
+          statement.moduleSpecifier.text.includes('ai-mock.server')
+        ) {
+          staticReferences.push(file)
+        }
+      }
+    }
+    expect(staticReferences).toEqual([])
   })
 })

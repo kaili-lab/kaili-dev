@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm'
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -140,5 +142,90 @@ export const mediaReferences = sqliteTable(
       ],
     }),
     index('media_references_article_idx').on(table.articleId),
+  ],
+)
+
+export const aiConnections = sqliteTable(
+  'ai_connections',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    baseURL: text('base_url').notNull(),
+    keyIv: text('key_iv').notNull(),
+    keyCiphertext: text('key_ciphertext').notNull(),
+    keyMask: text('key_mask').notNull(),
+    priority: integer('priority').notNull(),
+    enabled: integer('enabled').notNull(),
+    dataClassesJson: text('data_classes_json').notNull().default('["public"]'),
+    lastCheckedAt: text('last_checked_at'),
+    lastOk: integer('last_ok'),
+    lastFailure: text('last_failure'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    check('ai_connections_enabled_check', sql`${table.enabled} IN (0, 1)`),
+    check('ai_connections_last_ok_check', sql`${table.lastOk} IN (0, 1)`),
+  ],
+)
+
+export const aiModels = sqliteTable(
+  'ai_models',
+  {
+    id: text('id').primaryKey(),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => aiConnections.id, { onDelete: 'cascade' }),
+    providerModelId: text('provider_model_id').notNull(),
+    capabilitiesJson: text('capabilities_json').notNull().default('["chat"]'),
+    enabled: integer('enabled').notNull().default(1),
+    source: text('source').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('ai_models_connection_provider_idx').on(
+      table.connectionId,
+      table.providerModelId,
+    ),
+    check('ai_models_enabled_check', sql`${table.enabled} IN (0, 1)`),
+    check(
+      'ai_models_source_check',
+      sql`${table.source} IN ('discovered', 'manual')`,
+    ),
+  ],
+)
+
+export const aiDefaults = sqliteTable('ai_defaults', {
+  capability: text('capability').primaryKey(),
+  modelId: text('model_id')
+    .notNull()
+    .references(() => aiModels.id, { onDelete: 'cascade' }),
+})
+
+export const aiCalls = sqliteTable(
+  'ai_calls',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    purpose: text('purpose').notNull(),
+    connectionName: text('connection_name'),
+    providerModelId: text('provider_model_id'),
+    outcome: text('outcome').notNull(),
+    latencyMs: integer('latency_ms').notNull(),
+    fellBack: integer('fell_back').notNull(),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+  },
+  (table) => [
+    index('ai_calls_created_at_idx').on(table.createdAt),
+    check(
+      'ai_calls_outcome_check',
+      sql`${table.outcome} IN (
+        'ok', 'timeout', 'network', 'redirect', 'rate-limited', 'server-error',
+        'auth-failed', 'model-missing', 'bad-request', 'bad-format', 'config',
+        'no-eligible-connection', 'deadline'
+      )`,
+    ),
+    check('ai_calls_fell_back_check', sql`${table.fellBack} IN (0, 1)`),
   ],
 )

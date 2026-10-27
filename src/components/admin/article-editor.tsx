@@ -11,6 +11,7 @@ import {
   type CommitError,
   type EditorView,
 } from '#/features/admin.functions'
+import { generateSlugCandidates } from '#/features/ai.functions'
 import { AdminState, stateLabel } from '#/components/admin/admin-shell'
 import {
   ConfirmDialog,
@@ -153,6 +154,14 @@ export function ArticleEditor({
   const [compare, setCompare] = useState(false)
   // Narrow screens fold the sidebar behind 文章设置 (D-163 ③).
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [generatingSlug, setGeneratingSlug] = useState(false)
+  const [slugResult, setSlugResult] = useState<{
+    language: Language
+    title: string
+    summary: string
+    slugs?: string[]
+    error?: string
+  } | null>(null)
   const leaving = useRef(false)
   // Latest edits, read after an await (the closure would hold stale ones).
   const latest = useRef({ contents, shared, ideaIds })
@@ -174,6 +183,12 @@ export function ArticleEditor({
   }, [done, navigate])
 
   const content = contents[language]
+  const currentSlugResult =
+    slugResult?.language === language &&
+    slugResult.title === content.title &&
+    slugResult.summary === content.summary
+      ? slugResult
+      : null
   const dirty = {
     zh: !sameContent(contents.zh, baseline.zh),
     en: !sameContent(contents.en, baseline.en),
@@ -190,6 +205,32 @@ export function ArticleEditor({
       ...previous,
       [language]: { ...previous[language], [field]: value },
     }))
+
+  async function generateSlugs() {
+    const requested = {
+      language,
+      title: content.title,
+      summary: content.summary,
+    }
+    setGeneratingSlug(true)
+    setSlugResult(null)
+    try {
+      const result = await generateSlugCandidates({
+        data: { articleId: view.id, ...requested },
+      })
+      setSlugResult({
+        ...requested,
+        ...(result.ok ? { slugs: result.slugs } : { error: result.error }),
+      })
+    } catch {
+      setSlugResult({
+        ...requested,
+        error: '生成失败，请手动填写 slug',
+      })
+    } finally {
+      setGeneratingSlug(false)
+    }
+  }
 
   async function run(operation: 'save' | 'publish') {
     setBusy(operation)
@@ -680,6 +721,49 @@ export function ArticleEditor({
                 <small className="ad-field-error">{fieldErrors.slug}</small>
               ) : null}
             </label>
+            {!view.slugLocked ? (
+              <div className="ad-field">
+                <div className="ad-inline">
+                  <button
+                    type="button"
+                    className="ui-button"
+                    disabled={
+                      generatingSlug ||
+                      busy !== null ||
+                      !content.title.trim() ||
+                      !content.summary.trim()
+                    }
+                    onClick={() => void generateSlugs()}
+                  >
+                    {generatingSlug ? '生成中…' : '生成候选'}
+                  </button>
+                  {!content.title.trim() || !content.summary.trim() ? (
+                    <small className="ad-muted">先填写标题和摘要</small>
+                  ) : null}
+                </div>
+                {currentSlugResult?.error ? (
+                  <p role="alert" className="ad-feedback ad-error">
+                    {currentSlugResult.error}
+                  </p>
+                ) : null}
+                {currentSlugResult?.slugs ? (
+                  <div className="ad-tags" role="group" aria-label="slug 候选">
+                    {currentSlugResult.slugs.map((slug) => (
+                      <button
+                        type="button"
+                        className="ui-button"
+                        key={slug}
+                        onClick={() =>
+                          setShared((current) => ({ ...current, slug }))
+                        }
+                      >
+                        {slug}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </fieldset>
 
           <section
