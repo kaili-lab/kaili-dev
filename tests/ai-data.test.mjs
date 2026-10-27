@@ -5,23 +5,22 @@ import { describe, expect, it } from 'vitest'
 import {
   createConnection,
   createModel,
-  getCapabilityDefaults,
   getConnectionSecret,
-  insertDiscoveredModels,
+  insertModels,
   listConnections,
   listModels,
   listRecentAiCalls,
   recordAiCall,
   resetAiStores,
-  setDefaultModel,
+  swapModelOrder,
   updateConnection,
   updateConnectionResult,
   updateModel,
 } from '../src/server/data/ai.ts'
 
-const migration = readFileSync(
-  new URL('../drizzle/0008_ai_connections.sql', import.meta.url),
-  'utf8',
+const migrations = ['0008_ai_connections.sql', '0009_ai_model_order.sql'].map(
+  (name) =>
+    readFileSync(new URL(`../drizzle/${name}`, import.meta.url), 'utf8'),
 )
 
 function d1(database) {
@@ -67,7 +66,6 @@ function connection(overrides = {}) {
     id: 'connection-a',
     name: 'Main',
     baseURL: 'https://example.com/v1',
-    priority: 1,
     enabled: true,
     dataClasses: ['public'],
     secret: {
@@ -84,7 +82,7 @@ function connection(overrides = {}) {
 function databaseFixture() {
   const sqlite = new DatabaseSync(':memory:')
   sqlite.exec('PRAGMA foreign_keys = ON')
-  sqlite.exec(migration)
+  for (const migration of migrations) sqlite.exec(migration)
   return { sqlite, database: d1(sqlite) }
 }
 
@@ -100,7 +98,6 @@ describe('T8.2 AI data access', () => {
           name: 'Main',
           baseURL: 'https://example.com/v1',
           keyMask: 'sk-…0000',
-          priority: 1,
           enabled: true,
           dataClasses: ['public'],
           lastCheckedAt: null,
@@ -117,7 +114,6 @@ describe('T8.2 AI data access', () => {
         id: 'connection-a',
         name: 'Renamed',
         baseURL: 'https://example.com/openai',
-        priority: 2,
         enabled: false,
         dataClasses: ['public', 'draft'],
         updatedAt: '2026-10-27T01:00:00.000Z',
@@ -126,7 +122,6 @@ describe('T8.2 AI data access', () => {
         expect.objectContaining({
           name: 'Renamed',
           baseURL: 'https://example.com/openai',
-          priority: 2,
           enabled: false,
           dataClasses: ['public', 'draft'],
         }),
@@ -140,42 +135,49 @@ describe('T8.2 AI data access', () => {
     }
   })
 
-  it('does not duplicate discovered models or alter an existing model', async () => {
+  it('inserts selected models with their types and does not alter an existing model', async () => {
     const { sqlite, database } = databaseFixture()
     try {
       await createConnection(database, connection())
-      await insertDiscoveredModels(
+      await insertModels(
         database,
         'connection-a',
-        ['model-a', 'model-b', 'model-a'],
+        [
+          { providerModelId: 'model-a', capabilities: ['chat'] },
+          { providerModelId: 'model-b', capabilities: ['embedding'] },
+          { providerModelId: 'model-a', capabilities: ['image'] },
+        ],
         '2026-10-27T00:00:00.000Z',
       )
       const first = await listModels(database, 'connection-a')
       const modelA = first.find((model) => model.providerModelId === 'model-a')
       expect(first).toHaveLength(2)
-      expect(modelA).toBeDefined()
+      expect(first.map((model) => model.sortOrder)).toEqual([1, 2])
+      expect(first.map((model) => model.capabilities)).toEqual([
+        ['chat'],
+        ['embedding'],
+      ])
 
-      await updateModel(
-        database,
-        modelA.id,
-        ['chat', 'structured-output'],
-        false,
-      )
-      await insertDiscoveredModels(
+      await updateModel(database, modelA.id, ['chat', 'image'], false)
+      await insertModels(
         database,
         'connection-a',
-        ['model-a', 'model-c'],
+        [
+          { providerModelId: 'model-a', capabilities: ['chat'] },
+          { providerModelId: 'model-c', capabilities: ['chat'] },
+        ],
         '2026-10-27T01:00:00.000Z',
       )
 
       const models = await listModels(database, 'connection-a')
       expect(models).toHaveLength(3)
+      expect(models.map((model) => model.sortOrder)).toEqual([1, 2, 3])
       expect(
         models.find((model) => model.providerModelId === 'model-a'),
       ).toEqual(
         expect.objectContaining({
           id: modelA.id,
-          capabilities: ['chat', 'structured-output'],
+          capabilities: ['chat', 'image'],
           enabled: false,
         }),
       )
@@ -184,7 +186,42 @@ describe('T8.2 AI data access', () => {
     }
   })
 
-  it('reads defaults and recent calls, updates status, and resets all stores', async () => {
+  it('assigns max sort order plus one and swaps two models', async () => {
+    const { sqlite, database } = databaseFixture()
+    try {
+      await createConnection(database, connection())
+      for (const id of ['model-a', 'model-b', 'model-c']) {
+        await createModel(database, {
+          id,
+          connectionId: 'connection-a',
+          providerModelId: id,
+          capabilities: ['chat'],
+          enabled: true,
+          source: 'manual',
+          createdAt: '2026-10-27T00:00:00.000Z',
+        })
+      }
+      const order = async () =>
+        (await listModels(database)).map((model) => model.id)
+      expect(await order()).toEqual(['model-a', 'model-b', 'model-c'])
+
+      await swapModelOrder(database, 'model-a', 'model-b')
+      expect(await order()).toEqual(['model-b', 'model-a', 'model-c'])
+
+      // Equal sort orders are renumbered 1..n before swapping.
+      sqlite.exec('UPDATE ai_models SET sort_order = 5')
+      expect(await order()).toEqual(['model-a', 'model-b', 'model-c'])
+      await swapModelOrder(database, 'model-a', 'model-b')
+      expect(await order()).toEqual(['model-b', 'model-a', 'model-c'])
+      expect((await listModels(database)).map((m) => m.sortOrder)).toEqual([
+        1, 2, 3,
+      ])
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('reads recent calls, updates status, and resets all stores', async () => {
     const { sqlite, database } = databaseFixture()
     try {
       await createConnection(database, connection())
@@ -197,9 +234,6 @@ describe('T8.2 AI data access', () => {
         source: 'manual',
         createdAt: '2026-10-27T00:00:00.000Z',
       })
-      await setDefaultModel(database, 'chat', 'model-a')
-      expect(await getCapabilityDefaults(database)).toEqual({ chat: 'model-a' })
-
       await updateConnectionResult(
         database,
         'connection-a',
@@ -245,7 +279,6 @@ describe('T8.2 AI data access', () => {
       await resetAiStores(database)
       expect(await listConnections(database)).toEqual([])
       expect(await listModels(database)).toEqual([])
-      expect(await getCapabilityDefaults(database)).toEqual({})
       expect(await listRecentAiCalls(database, 20)).toEqual([])
     } finally {
       sqlite.close()

@@ -3,18 +3,24 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 
 import {
   addAiModel,
+  addAiModels,
   discoverAiModels,
+  moveAiModel,
   removeAiConnection,
   removeAiModel,
   saveAiConnection,
   saveAiModel,
-  saveStructuredOutputDefault,
   testAiConnection,
   type AiConnectionValidationError,
   type AiConnectionView,
   type AiOverview,
 } from '#/features/ai.functions'
-import type { Capability, DataClass, FailureKind } from '#/features/ai-routing'
+import {
+  FAILURE_TEXT,
+  guessCapability,
+  type Capability,
+  type DataClass,
+} from '#/features/ai-routing'
 import { ConfirmDialog } from '#/components/admin/dialogs'
 import { ListLayout } from '#/components/admin/list-page'
 
@@ -26,27 +32,16 @@ const DATA_CLASS_LABELS: Record<DataClass, string> = {
   image: '私有图片',
 }
 const DATA_CLASSES = Object.keys(DATA_CLASS_LABELS) as DataClass[]
-const CAPABILITIES: Capability[] = ['chat', 'structured-output']
-
-const FAILURE_LABELS: Record<FailureKind, string> = {
-  timeout: '请求超时',
-  network: '网络错误',
-  redirect: '上游返回重定向，已拒绝',
-  'rate-limited': '上游限流',
-  'server-error': '上游服务错误',
-  'auth-failed': 'API key 无效或无权限',
-  'model-missing': '模型不存在',
-  'bad-request': '上游拒绝了请求',
-  'bad-format': '上游返回格式不对',
-  config: '配置错误',
-  'no-eligible-connection': '没有允许发送这类内容的可用连接',
-  deadline: '超过总等待时间',
+const CAPABILITIES: Capability[] = ['chat', 'image', 'embedding']
+const CAPABILITY_LABELS: Record<Capability, string> = {
+  chat: '对话',
+  image: '画图',
+  embedding: '向量',
 }
 
 const VALIDATION_LABELS: Record<AiConnectionValidationError, string> = {
   'name-required': '请填写名称',
   'base-url-invalid': '只允许 HTTPS 地址，且不能带用户名、密码、查询参数',
-  'priority-invalid': '优先级须为 1–99 的整数',
   'data-classes-invalid': '至少选择一类可发送的内容',
 }
 
@@ -70,38 +65,35 @@ function Feedback({ message }: { message: Message }) {
 function connectionResult(connection: AiOverview['connections'][number]) {
   if (connection.lastOk === null) return '未测试'
   if (connection.lastOk) return '成功'
-  return FAILURE_LABELS[connection.lastFailure ?? 'config']
+  return FAILURE_TEXT[connection.lastFailure ?? 'config']
 }
 
 export function AiOverviewPage({ overview }: { overview: AiOverview }) {
   const router = useRouter()
   const [message, setMessage] = useState<Message>(null)
-  const [savingDefault, setSavingDefault] = useState(false)
+  const [moving, setMoving] = useState(false)
   const connectionNames = new Map(
     overview.connections.map((connection) => [connection.id, connection.name]),
   )
-  const defaultModels = overview.models.filter(
-    (model) =>
-      model.enabled && model.capabilities.includes('structured-output'),
-  )
 
-  async function changeDefault(modelId: string) {
-    setSavingDefault(true)
+  async function move(
+    id: string,
+    capability: Capability,
+    direction: 'up' | 'down',
+  ) {
+    setMoving(true)
     setMessage(null)
     try {
-      const result = await saveStructuredOutputDefault({
-        data: { modelId: modelId || null },
-      })
+      const result = await moveAiModel({ data: { id, capability, direction } })
       if (!result.ok) {
-        setMessage({ ok: false, text: FAILURE_LABELS[result.error] })
+        setMessage({ ok: false, text: FAILURE_TEXT.config })
         return
       }
-      setMessage({ ok: true, text: '默认模型已保存' })
       await router.invalidate()
     } catch {
       setMessage({ ok: false, text: genericFailure })
     } finally {
-      setSavingDefault(false)
+      setMoving(false)
     }
   }
 
@@ -110,9 +102,9 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
       head={
         <div className="ad-page-head">
           <h1>AI 接入</h1>
-          <span className="ad-count">{overview.connections.length} 个连接</span>
+          <span className="ad-count">{overview.connections.length} 个平台</span>
           <Link className="ui-button ad-primary" to="/admin/ai/new">
-            新建连接
+            新建平台
           </Link>
         </div>
       }
@@ -124,7 +116,6 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
             <th scope="col">名称</th>
             <th scope="col">baseURL</th>
             <th scope="col">API key</th>
-            <th scope="col">优先级</th>
             <th scope="col">启用</th>
             <th scope="col">允许的数据类别</th>
             <th scope="col">最近测试</th>
@@ -134,8 +125,8 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
         <tbody>
           {overview.connections.length === 0 ? (
             <tr>
-              <td colSpan={8} className="ad-table-empty">
-                还没有 AI 连接。
+              <td colSpan={7} className="ad-table-empty">
+                还没有 AI 平台。
               </td>
             </tr>
           ) : (
@@ -148,7 +139,6 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
                 </td>
                 <td data-label="baseURL">{connection.baseURL}</td>
                 <td data-label="API key">{connection.keyMask}</td>
-                <td data-label="优先级">{connection.priority}</td>
                 <td data-label="启用">{connection.enabled ? '是' : '否'}</td>
                 <td data-label="允许的数据类别">
                   {connection.dataClasses
@@ -178,25 +168,51 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
       </table>
 
       <section className="ad-panel ad-after">
-        <h2>默认模型</h2>
-        <label className="ad-field">
-          <span>structured-output</span>
-          <select
-            className="ui-input"
-            aria-label="structured-output 默认模型"
-            value={overview.defaults['structured-output'] ?? ''}
-            disabled={savingDefault}
-            onChange={(event) => void changeDefault(event.target.value)}
-          >
-            <option value="">未设置</option>
-            {defaultModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {connectionNames.get(model.connectionId)} ·{' '}
-                {model.providerModelId}
-              </option>
-            ))}
-          </select>
-        </label>
+        <h2>调用顺序</h2>
+        {CAPABILITIES.map((capability) => {
+          const order = overview.models.filter(
+            (model) => model.enabled && model.capabilities.includes(capability),
+          )
+          return (
+            <div key={capability}>
+              <h3>{CAPABILITY_LABELS[capability]}</h3>
+              {order.length === 0 ? (
+                <p>还没有可用的模型。</p>
+              ) : (
+                <ol>
+                  {order.map((model, index) => {
+                    const label = `${connectionNames.get(model.connectionId)} · ${model.providerModelId}`
+                    return (
+                      <li key={model.id} className="ad-inline">
+                        <span>{label}</span>
+                        <button
+                          type="button"
+                          className="ui-button"
+                          aria-label={`上移 ${label}`}
+                          disabled={moving || index === 0}
+                          onClick={() => void move(model.id, capability, 'up')}
+                        >
+                          上移
+                        </button>
+                        <button
+                          type="button"
+                          className="ui-button"
+                          aria-label={`下移 ${label}`}
+                          disabled={moving || index === order.length - 1}
+                          onClick={() =>
+                            void move(model.id, capability, 'down')
+                          }
+                        >
+                          下移
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          )
+        })}
         <Feedback message={message} />
       </section>
 
@@ -207,7 +223,7 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
             <tr>
               <th scope="col">时间</th>
               <th scope="col">用途</th>
-              <th scope="col">连接</th>
+              <th scope="col">平台</th>
               <th scope="col">模型</th>
               <th scope="col">结果</th>
               <th scope="col">耗时</th>
@@ -227,13 +243,13 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
                     {stamp(call.createdAt)}
                   </td>
                   <td data-label="用途">{call.purpose}</td>
-                  <td data-label="连接">{call.connectionName ?? '—'}</td>
+                  <td data-label="平台">{call.connectionName ?? '—'}</td>
                   <td data-label="模型">{call.providerModelId ?? '—'}</td>
                   <td data-label="结果">
                     {call.outcome === 'ok'
                       ? '成功'
-                      : FAILURE_LABELS[call.outcome]}
-                    {call.fellBack ? ' · 已切换连接' : ''}
+                      : FAILURE_TEXT[call.outcome]}
+                    {call.fellBack ? ' · 已切换备用模型' : ''}
                   </td>
                   <td data-label="耗时">{call.latencyMs} ms</td>
                 </tr>
@@ -258,7 +274,6 @@ export function AiConnectionPage({
   const [baseURL, setBaseURL] = useState(connection?.baseURL ?? '')
   const [key, setKey] = useState('')
   const [replaceKey, setReplaceKey] = useState(!connection)
-  const [priority, setPriority] = useState(connection?.priority ?? 1)
   const [enabled, setEnabled] = useState(connection?.enabled ?? true)
   const [dataClasses, setDataClasses] = useState<DataClass[]>(
     connection?.dataClasses ?? ['public'],
@@ -267,6 +282,10 @@ export function AiConnectionPage({
   const [message, setMessage] = useState<Message>(null)
   const [busy, setBusy] = useState(false)
   const [manualModel, setManualModel] = useState('')
+  const [manualCapability, setManualCapability] = useState<Capability>('chat')
+  const [found, setFound] = useState<
+    { id: string; capability: Capability; selected: boolean }[] | null
+  >(null)
   const [deleting, setDeleting] = useState(false)
 
   const hasError = (error: AiConnectionValidationError) =>
@@ -284,7 +303,6 @@ export function AiConnectionPage({
           name,
           baseURL,
           key: replaceKey ? key : '',
-          priority,
           enabled,
           dataClasses,
         },
@@ -297,7 +315,7 @@ export function AiConnectionPage({
         } else if (result.error === 'key-required') {
           setMessage({ ok: false, text: '请填写 API key' })
         } else {
-          setMessage({ ok: false, text: FAILURE_LABELS.config })
+          setMessage({ ok: false, text: FAILURE_TEXT.config })
         }
         return
       }
@@ -311,7 +329,7 @@ export function AiConnectionPage({
       }
       setKey('')
       setReplaceKey(false)
-      setMessage({ ok: true, text: '连接已保存' })
+      setMessage({ ok: true, text: '平台已保存' })
       await router.invalidate()
     } catch {
       setMessage({ ok: false, text: genericFailure })
@@ -334,10 +352,24 @@ export function AiConnectionPage({
           text:
             result.error === 'master-key'
               ? '未配置 AI_MASTER_KEY'
-              : FAILURE_LABELS[result.error],
+              : FAILURE_TEXT[result.error],
         })
         await router.invalidate()
         return
+      }
+      if (discover && 'modelIds' in result) {
+        const saved = new Set(
+          initial?.models.map((model) => model.providerModelId),
+        )
+        setFound(
+          result.modelIds
+            .filter((id) => !saved.has(id))
+            .map((id) => ({
+              id,
+              capability: guessCapability(id),
+              selected: false,
+            })),
+        )
       }
       setMessage({
         ok: true,
@@ -358,7 +390,11 @@ export function AiConnectionPage({
     setMessage(null)
     try {
       const result = await addAiModel({
-        data: { connectionId: connection.id, providerModelId: manualModel },
+        data: {
+          connectionId: connection.id,
+          providerModelId: manualModel,
+          capabilities: [manualCapability],
+        },
       })
       if (!result.ok) {
         setMessage({
@@ -368,11 +404,42 @@ export function AiConnectionPage({
               ? '请填写模型 ID'
               : result.error === 'duplicate'
                 ? '模型已存在'
-                : FAILURE_LABELS.config,
+                : FAILURE_TEXT.config,
         })
         return
       }
       setManualModel('')
+      setManualCapability('chat')
+      setMessage({ ok: true, text: '模型已添加' })
+      await router.invalidate()
+    } catch {
+      setMessage({ ok: false, text: genericFailure })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function addFound() {
+    if (!connection || !found) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      const result = await addAiModels({
+        data: {
+          connectionId: connection.id,
+          models: found
+            .filter((item) => item.selected)
+            .map((item) => ({
+              providerModelId: item.id,
+              capabilities: [item.capability],
+            })),
+        },
+      })
+      if (!result.ok) {
+        setMessage({ ok: false, text: FAILURE_TEXT.config })
+        return
+      }
+      setFound(null)
       setMessage({ ok: true, text: '模型已添加' })
       await router.invalidate()
     } catch {
@@ -398,7 +465,7 @@ export function AiConnectionPage({
         },
       })
       if (!result.ok) {
-        setMessage({ ok: false, text: FAILURE_LABELS.config })
+        setMessage({ ok: false, text: FAILURE_TEXT.config })
         return
       }
       setMessage({ ok: true, text: '模型已保存' })
@@ -441,13 +508,13 @@ export function AiConnectionPage({
   return (
     <section className="ad-page">
       <div className="ad-page-head">
-        <h1>{connection ? connection.name : '新建 AI 连接'}</h1>
+        <h1>{connection ? connection.name : '新建 AI 平台'}</h1>
         <Link to="/admin/ai">← AI 接入</Link>
       </div>
 
       <form className="ad-content" onSubmit={(event) => void save(event)}>
         <section className="ad-panel">
-          <h2>连接</h2>
+          <h2>平台</h2>
           <label className="ad-field">
             <span>名称</span>
             <input
@@ -502,25 +569,8 @@ export function AiConnectionPage({
             )}
           </div>
 
-          <label className="ad-field">
-            <span>优先级</span>
-            <input
-              className="ui-input"
-              type="number"
-              min={1}
-              max={99}
-              value={priority}
-              onChange={(event) => setPriority(Number(event.target.value))}
-            />
-            {hasError('priority-invalid') ? (
-              <span className="ad-field-error">
-                {VALIDATION_LABELS['priority-invalid']}
-              </span>
-            ) : null}
-          </label>
-
           <div className="ad-tags">
-            <span>连接状态</span>
+            <span>平台状态</span>
             <label>
               <input
                 type="checkbox"
@@ -562,7 +612,7 @@ export function AiConnectionPage({
               className="ui-button ad-primary"
               disabled={busy}
             >
-              保存连接
+              保存平台
             </button>
             {connection ? (
               <>
@@ -592,6 +642,66 @@ export function AiConnectionPage({
       {connection && initial ? (
         <section className="ad-panel ad-after">
           <h2>模型</h2>
+          {found ? (
+            found.length === 0 ? (
+              <p>没有新的模型</p>
+            ) : (
+              <div>
+                {found.map((item) => (
+                  <div key={item.id} className="ad-inline">
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={`选择 ${item.id}`}
+                        checked={item.selected}
+                        onChange={(event) =>
+                          setFound(
+                            found.map((other) =>
+                              other.id === item.id
+                                ? { ...other, selected: event.target.checked }
+                                : other,
+                            ),
+                          )
+                        }
+                      />
+                      {item.id}
+                    </label>
+                    <select
+                      className="ui-input"
+                      aria-label={`${item.id} 类型`}
+                      value={item.capability}
+                      onChange={(event) =>
+                        setFound(
+                          found.map((other) =>
+                            other.id === item.id
+                              ? {
+                                  ...other,
+                                  capability: event.target.value as Capability,
+                                }
+                              : other,
+                          ),
+                        )
+                      }
+                    >
+                      {CAPABILITIES.map((capability) => (
+                        <option key={capability} value={capability}>
+                          {CAPABILITY_LABELS[capability]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="ui-button"
+                  disabled={busy || !found.some((item) => item.selected)}
+                  onClick={() => void addFound()}
+                >
+                  添加所选模型
+                </button>
+              </div>
+            )
+          ) : null}
           <form
             className="ad-inline"
             onSubmit={(event) => void addModel(event)}
@@ -601,8 +711,28 @@ export function AiConnectionPage({
               <input
                 className="ui-input"
                 value={manualModel}
-                onChange={(event) => setManualModel(event.target.value)}
+                onChange={(event) => {
+                  setManualModel(event.target.value)
+                  setManualCapability(guessCapability(event.target.value))
+                }}
               />
+            </label>
+            <label className="ad-field">
+              <span>类型</span>
+              <select
+                className="ui-input"
+                aria-label="模型类型"
+                value={manualCapability}
+                onChange={(event) =>
+                  setManualCapability(event.target.value as Capability)
+                }
+              >
+                {CAPABILITIES.map((capability) => (
+                  <option key={capability} value={capability}>
+                    {CAPABILITY_LABELS[capability]}
+                  </option>
+                ))}
+              </select>
             </label>
             <button type="submit" className="ui-button" disabled={busy}>
               添加模型
@@ -635,7 +765,7 @@ export function AiConnectionPage({
                           <label key={capability}>
                             <input
                               type="checkbox"
-                              aria-label={`${model.providerModelId} ${capability}`}
+                              aria-label={`${model.providerModelId} ${CAPABILITY_LABELS[capability]}`}
                               checked={model.capabilities.includes(capability)}
                               disabled={busy}
                               onChange={(event) =>
@@ -650,7 +780,7 @@ export function AiConnectionPage({
                                 )
                               }
                             />
-                            {capability}
+                            {CAPABILITY_LABELS[capability]}
                           </label>
                         ))}
                       </div>
@@ -702,15 +832,15 @@ export function AiConnectionPage({
             disabled={busy}
             onClick={() => setDeleting(true)}
           >
-            删除连接
+            删除平台
           </button>
         </div>
       ) : null}
 
       <ConfirmDialog
         open={deleting}
-        title="永久删除这个 AI 连接？"
-        description="该连接下的模型和默认模型设置也会删除。此操作不能撤销。"
+        title="永久删除这个 AI 平台？"
+        description="该平台下的模型也会删除。此操作不能撤销。"
         confirm="删除"
         onConfirm={() => void removeConnection()}
         onCancel={() => setDeleting(false)}

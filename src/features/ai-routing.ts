@@ -1,5 +1,5 @@
 export type DataClass = 'public' | 'draft' | 'idea' | 'resource' | 'image'
-export type Capability = 'chat' | 'structured-output'
+export type Capability = 'chat' | 'image' | 'embedding'
 export type FailureKind =
   | 'timeout'
   | 'network'
@@ -19,7 +19,6 @@ export type ConnectionSummary = {
   name: string
   baseURL: string
   keyMask: string
-  priority: number
   enabled: boolean
   dataClasses: DataClass[]
   lastCheckedAt: string | null
@@ -34,20 +33,15 @@ export type ModelSummary = {
   capabilities: Capability[]
   enabled: boolean
   source: 'discovered' | 'manual'
+  sortOrder: number
 }
 
-export type CapabilityDefaults = Partial<Record<Capability, string>>
-
 export type ConnectionValidationError =
-  | 'name-required'
-  | 'base-url-invalid'
-  | 'priority-invalid'
-  | 'data-classes-invalid'
+  'name-required' | 'base-url-invalid' | 'data-classes-invalid'
 
 export type ConnectionInput = {
   name: string
   baseURL: string
-  priority: number
   dataClasses: DataClass[]
 }
 
@@ -74,15 +68,33 @@ const DATA_CLASSES: DataClass[] = [
   'image',
 ]
 
-export function normalizeCapabilities(caps: Capability[]): Capability[] {
-  if (caps.includes('structured-output')) return ['chat', 'structured-output']
-  return caps.includes('chat') ? ['chat'] : []
+export const FAILURE_TEXT: Record<FailureKind, string> = {
+  timeout: '请求超时',
+  network: '网络错误',
+  redirect: '上游返回重定向，已拒绝',
+  'rate-limited': '上游限流',
+  'server-error': '上游服务错误',
+  'auth-failed': 'API key 无效或无权限',
+  'model-missing': '模型不存在',
+  'bad-request': '上游拒绝了请求',
+  'bad-format': '上游返回格式不对',
+  config: '配置错误',
+  'no-eligible-connection':
+    '没有可用的模型：确认调用顺序里有已启用的模型，且所属平台允许发送这类内容',
+  deadline: '超过总等待时间',
+}
+
+export function guessCapability(providerModelId: string): Capability {
+  const id = providerModelId.toLowerCase()
+  if (id.includes('embed')) return 'embedding'
+  if (id.includes('image') || id.includes('dall-e') || id.includes('imagen'))
+    return 'image'
+  return 'chat'
 }
 
 export function validateConnectionInput({
   name,
   baseURL,
-  priority,
   dataClasses,
 }: ConnectionInput): ConnectionValidationError[] {
   const errors: ConnectionValidationError[] = []
@@ -104,10 +116,6 @@ export function validateConnectionInput({
     errors.push('base-url-invalid')
   }
 
-  if (!Number.isInteger(priority) || priority < 1 || priority > 99) {
-    errors.push('priority-invalid')
-  }
-
   if (
     dataClasses.length === 0 ||
     dataClasses.some((dataClass) => !DATA_CLASSES.includes(dataClass))
@@ -125,12 +133,10 @@ export function normalizeBaseURL(url: string): string {
 export function selectCandidates({
   connections,
   models,
-  defaults,
   request,
 }: {
   connections: ConnectionSummary[]
   models: ModelSummary[]
-  defaults: CapabilityDefaults
   request: ModelRequest
 }): SelectCandidatesResult {
   if (request.modelId !== undefined) {
@@ -172,25 +178,11 @@ export function selectCandidates({
   }
 
   candidates.sort((left, right) => {
-    const priorityDifference =
-      left.connection.priority - right.connection.priority
-    if (priorityDifference !== 0) return priorityDifference
-    if (left.connection.id !== right.connection.id) {
-      return left.connection.id < right.connection.id ? -1 : 1
-    }
-    if (left.model.providerModelId === right.model.providerModelId) return 0
-    return left.model.providerModelId < right.model.providerModelId ? -1 : 1
+    const orderDifference = left.model.sortOrder - right.model.sortOrder
+    if (orderDifference !== 0) return orderDifference
+    if (left.model.id === right.model.id) return 0
+    return left.model.id < right.model.id ? -1 : 1
   })
-
-  const defaultModelId = defaults[request.capability]
-  if (defaultModelId !== undefined) {
-    const defaultIndex = candidates.findIndex(
-      ({ model }) => model.id === defaultModelId,
-    )
-    if (defaultIndex > 0) {
-      candidates.unshift(...candidates.splice(defaultIndex, 1))
-    }
-  }
 
   return candidates.length > 0
     ? { ok: true, candidates }
@@ -209,6 +201,20 @@ export function classifyFailure(
   if (status === 429) return 'rate-limited'
   if (status >= 500) return 'server-error'
   return 'bad-request'
+}
+
+export function skipsConnection(kind: FailureKind): boolean {
+  switch (kind) {
+    case 'timeout':
+    case 'network':
+    case 'redirect':
+    case 'rate-limited':
+    case 'server-error':
+    case 'auth-failed':
+      return true
+    default:
+      return false
+  }
 }
 
 export function canTryNext(kind: FailureKind): boolean {

@@ -227,4 +227,70 @@ describe('D1 migration chain', () => {
       database.close()
     }
   })
+
+  it('moves AI models to an explicit call order and drops defaults and priority', () => {
+    const database = new DatabaseSync(':memory:')
+    try {
+      database.exec('PRAGMA foreign_keys = ON')
+      for (const name of [
+        '0000_left_patch.sql',
+        '0001_nullable_article_slug.sql',
+        '0002_media_reference_guard.sql',
+        '0003_live_media_reference.sql',
+        '0004_concurrency_taxonomy_guards.sql',
+        '0005_article_withdrawal.sql',
+        '0006_withdrawn_taxonomy.sql',
+        '0007_withdrawn_guards.sql',
+        '0008_ai_connections.sql',
+      ])
+        database.exec(migration(name))
+
+      database.exec(`
+        INSERT INTO ai_connections
+          (id, name, base_url, key_iv, key_ciphertext, key_mask, priority,
+           enabled, created_at, updated_at)
+        VALUES
+          ('connection-1', 'Main', 'https://example.com/v1', 'iv', 'ciphertext',
+           'sk-…0000', 1, 1, '2026-10-27', '2026-10-27');
+        INSERT INTO ai_models
+          (id, connection_id, provider_model_id, capabilities_json, source,
+           created_at)
+        VALUES
+          ('model-1', 'connection-1', 'first', '["chat","structured-output"]',
+           'discovered', '2026-10-27'),
+          ('model-2', 'connection-1', 'second', '["chat"]', 'manual',
+           '2026-10-27');
+        INSERT INTO ai_defaults (capability, model_id)
+        VALUES ('structured-output', 'model-1');
+      `)
+
+      database.exec(migration('0009_ai_model_order.sql'))
+
+      expect(
+        database
+          .prepare("SELECT name FROM sqlite_master WHERE name = 'ai_defaults'")
+          .all(),
+      ).toEqual([])
+      expect(
+        database
+          .prepare("SELECT name FROM pragma_table_info('ai_connections')")
+          .all()
+          .map((column) => column.name),
+      ).not.toContain('priority')
+      const models = database
+        .prepare(
+          'SELECT id, capabilities_json, sort_order FROM ai_models ORDER BY sort_order',
+        )
+        .all()
+      expect(models.map((model) => model.id)).toEqual(['model-1', 'model-2'])
+      expect(models.map((model) => model.capabilities_json)).toEqual([
+        '["chat"]',
+        '["chat"]',
+      ])
+      expect(models.every((model) => model.sort_order !== 0)).toBe(true)
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    } finally {
+      database.close()
+    }
+  })
 })

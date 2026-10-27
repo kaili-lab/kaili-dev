@@ -9,10 +9,9 @@ import {
 } from '#/features/ai-openai.server'
 import {
   normalizeBaseURL,
-  normalizeCapabilities,
+  FAILURE_TEXT,
   validateConnectionInput,
   type Capability,
-  type CapabilityDefaults,
   type ConnectionSummary,
   type ConnectionValidationError,
   type DataClass,
@@ -31,17 +30,16 @@ import {
   createModel,
   deleteConnection,
   deleteModel,
-  getCapabilityDefaults,
   getConnection,
   getConnectionSecret,
   getModel,
-  insertDiscoveredModels,
+  insertModels,
   listConnections,
   listModels,
   listRecentAiCalls,
-  setDefaultModel,
   updateConnection,
   updateConnectionResult,
+  swapModelOrder,
   updateModel,
   type AiCall,
 } from '#/server/data/ai'
@@ -64,11 +62,6 @@ function boolean(value: unknown, name: string): boolean {
   return value
 }
 
-function number(value: unknown, name: string): number {
-  if (typeof value !== 'number') throw new Error(`Invalid ${name}`)
-  return value
-}
-
 function strings(value: unknown, name: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string'))
     throw new Error(`Invalid ${name}`)
@@ -86,13 +79,12 @@ function connectionRequest(input: unknown) {
     name: text(value.name, 'name'),
     baseURL: text(value.baseURL, 'baseURL'),
     key: text(value.key, 'key'),
-    priority: number(value.priority, 'priority'),
     enabled: boolean(value.enabled, 'enabled'),
     dataClasses: strings(value.dataClasses, 'dataClasses') as DataClass[],
   }
 }
 
-const capabilityValues: Capability[] = ['chat', 'structured-output']
+const capabilityValues: Capability[] = ['chat', 'image', 'embedding']
 function capabilities(value: unknown): Capability[] {
   const values = strings(value, 'capabilities')
   if (
@@ -112,7 +104,6 @@ async function masterKey(): Promise<string> {
 export type AiOverview = {
   connections: ConnectionSummary[]
   models: ModelSummary[]
-  defaults: CapabilityDefaults
   calls: AiCall[]
 }
 
@@ -125,13 +116,12 @@ export const loadAiOverview = createServerFn({ method: 'GET' })
   .middleware([requireAdminFunctionSession])
   .handler(async (): Promise<AiOverview> => {
     const database = await runtimeDatabase()
-    const [connections, models, defaults, calls] = await Promise.all([
+    const [connections, models, calls] = await Promise.all([
       listConnections(database),
       listModels(database),
-      getCapabilityDefaults(database),
       listRecentAiCalls(database, 20),
     ])
-    return { connections, models, defaults, calls }
+    return { connections, models, calls }
   })
 
 export const loadAiConnection = createServerFn({ method: 'GET' })
@@ -185,7 +175,6 @@ export const saveAiConnection = createServerFn({ method: 'POST' })
     const common = {
       name: data.name.trim(),
       baseURL: normalizeBaseURL(data.baseURL.trim()),
-      priority: data.priority,
       enabled: data.enabled,
       dataClasses: data.dataClasses,
     }
@@ -227,7 +216,6 @@ type CheckResult =
 async function checkConnection(
   database: D1Database,
   id: string,
-  discover: boolean,
 ): Promise<CheckResult> {
   const [connection, secret] = await Promise.all([
     getConnection(database, id),
@@ -251,8 +239,6 @@ async function checkConnection(
       apiKey,
       signal: AbortSignal.timeout(10_000),
     })
-    if (discover)
-      await insertDiscoveredModels(database, id, modelIds, checkedAt)
     await updateConnectionResult(database, id, checkedAt, true, null)
     return { ok: true, modelIds }
   } catch (error) {
@@ -266,14 +252,14 @@ export const testAiConnection = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
   .validator(idRequest)
   .handler(async ({ data }) =>
-    checkConnection(await runtimeDatabase(), data.id, false),
+    checkConnection(await runtimeDatabase(), data.id),
   )
 
 export const discoverAiModels = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
   .validator(idRequest)
   .handler(async ({ data }) =>
-    checkConnection(await runtimeDatabase(), data.id, true),
+    checkConnection(await runtimeDatabase(), data.id),
   )
 
 export const addAiModel = createServerFn({ method: 'POST' })
@@ -283,6 +269,7 @@ export const addAiModel = createServerFn({ method: 'POST' })
     return {
       connectionId: text(value.connectionId, 'connectionId'),
       providerModelId: text(value.providerModelId, 'providerModelId'),
+      capabilities: capabilities(value.capabilities),
     }
   })
   .handler(async ({ data }) => {
@@ -304,7 +291,7 @@ export const addAiModel = createServerFn({ method: 'POST' })
       id: crypto.randomUUID(),
       connectionId: data.connectionId,
       providerModelId,
-      capabilities: ['chat'],
+      capabilities: data.capabilities,
       enabled: true,
       source: 'manual',
       createdAt: new Date().toISOString(),
@@ -326,12 +313,7 @@ export const saveAiModel = createServerFn({ method: 'POST' })
     const database = await runtimeDatabase()
     if (!(await getModel(database, data.id)))
       return { ok: false as const, error: 'config' as const }
-    await updateModel(
-      database,
-      data.id,
-      normalizeCapabilities(data.capabilities),
-      data.enabled,
-    )
+    await updateModel(database, data.id, data.capabilities, data.enabled)
     return { ok: true as const }
   })
 
@@ -343,45 +325,77 @@ export const removeAiModel = createServerFn({ method: 'POST' })
     return { ok: true as const }
   })
 
-export const saveStructuredOutputDefault = createServerFn({ method: 'POST' })
+export const addAiModels = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => {
     const value = object(input)
+    if (!Array.isArray(value.models)) throw new Error('Invalid models')
     return {
-      modelId: value.modelId === null ? null : text(value.modelId, 'modelId'),
+      connectionId: text(value.connectionId, 'connectionId'),
+      models: value.models.map((item: unknown) => {
+        const model = object(item)
+        return {
+          providerModelId: text(
+            model.providerModelId,
+            'providerModelId',
+          ).trim(),
+          capabilities: capabilities(model.capabilities),
+        }
+      }),
     }
   })
   .handler(async ({ data }) => {
     const database = await runtimeDatabase()
-    if (data.modelId !== null) {
-      const model = await getModel(database, data.modelId)
-      if (
-        !model ||
-        !model.enabled ||
-        !model.capabilities.includes('structured-output')
-      )
-        return { ok: false as const, error: 'config' as const }
+    if (!(await getConnection(database, data.connectionId)))
+      return { ok: false as const, error: 'config' as const }
+    const existing = new Set(
+      (await listModels(database, data.connectionId)).map(
+        (model) => model.providerModelId,
+      ),
+    )
+    await insertModels(
+      database,
+      data.connectionId,
+      data.models.filter(
+        (model) =>
+          model.providerModelId !== '' && !existing.has(model.providerModelId),
+      ),
+      new Date().toISOString(),
+    )
+    return { ok: true as const }
+  })
+
+export const moveAiModel = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
+  .validator((input: unknown) => {
+    const value = object(input)
+    const capability = text(value.capability, 'capability')
+    if (!capabilityValues.includes(capability as Capability))
+      throw new Error('Invalid capability')
+    const direction = text(value.direction, 'direction')
+    if (direction !== 'up' && direction !== 'down')
+      throw new Error('Invalid direction')
+    return {
+      id: text(value.id, 'id'),
+      capability: capability as Capability,
+      direction,
     }
-    await setDefaultModel(database, 'structured-output', data.modelId)
+  })
+  .handler(async ({ data }) => {
+    const database = await runtimeDatabase()
+    const order = (await listModels(database)).filter(
+      (model) => model.enabled && model.capabilities.includes(data.capability),
+    )
+    const index = order.findIndex((model) => model.id === data.id)
+    const current = order[index]
+    const neighbor = order[data.direction === 'up' ? index - 1 : index + 1]
+    if (!current || !neighbor)
+      return { ok: false as const, error: 'config' as const }
+    await swapModelOrder(database, current.id, neighbor.id)
     return { ok: true as const }
   })
 
 export type AiConnectionValidationError = ConnectionValidationError
-
-const SLUG_FAILURE_TEXT: Record<FailureKind, string> = {
-  timeout: '请求超时',
-  network: '网络错误',
-  redirect: '上游返回重定向，已拒绝',
-  'rate-limited': '上游限流',
-  'server-error': '上游服务错误',
-  'auth-failed': 'API key 无效或无权限',
-  'model-missing': '模型不存在',
-  'bad-request': '上游拒绝了请求',
-  'bad-format': '上游返回格式不对',
-  config: '配置错误',
-  'no-eligible-connection': '没有允许发送这类内容的可用连接',
-  deadline: '超过总等待时间',
-}
 
 export const generateSlugCandidates = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
@@ -424,14 +438,14 @@ export const generateSlugCandidates = createServerFn({ method: 'POST' })
       database,
       masterKeyB64,
       purpose: 'slug-candidates',
-      capability: 'structured-output',
+      capability: 'chat',
       dataClasses: ['draft'],
       messages: slugPrompt({ title, summary }),
       maxTokens: 200,
       deadlineMs: 20_000,
     })
     if (!result.ok)
-      return { ok: false as const, error: SLUG_FAILURE_TEXT[result.kind] }
+      return { ok: false as const, error: FAILURE_TEXT[result.kind] }
 
     const slugs = parseSlugCandidates(
       result.text,

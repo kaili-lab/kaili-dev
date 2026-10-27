@@ -1,6 +1,5 @@
 import type {
   Capability,
-  CapabilityDefaults,
   ConnectionSummary,
   DataClass,
   FailureKind,
@@ -14,7 +13,6 @@ type ConnectionRow = {
   name: string
   base_url: string
   key_mask: string
-  priority: number
   enabled: number
   data_classes_json: string
   last_checked_at: string | null
@@ -34,11 +32,7 @@ type ModelRow = {
   capabilities_json: string
   enabled: number
   source: 'discovered' | 'manual'
-}
-
-type DefaultRow = {
-  capability: string
-  model_id: string
+  sort_order: number
 }
 
 type AiCallRow = {
@@ -67,13 +61,13 @@ export type NewConnection = Omit<
 
 export type ConnectionUpdate = Pick<
   ConnectionSummary,
-  'id' | 'name' | 'baseURL' | 'priority' | 'enabled' | 'dataClasses'
+  'id' | 'name' | 'baseURL' | 'enabled' | 'dataClasses'
 > & {
   secret?: StoredConnectionSecret
   updatedAt: string
 }
 
-export type NewModel = ModelSummary & { createdAt: string }
+export type NewModel = Omit<ModelSummary, 'sortOrder'> & { createdAt: string }
 
 export type AiCallOutcome = 'ok' | FailureKind
 
@@ -96,7 +90,6 @@ function toConnection(row: ConnectionRow): ConnectionSummary {
     name: row.name,
     baseURL: row.base_url,
     keyMask: row.key_mask,
-    priority: row.priority,
     enabled: row.enabled === 1,
     dataClasses: JSON.parse(row.data_classes_json) as DataClass[],
     lastCheckedAt: row.last_checked_at,
@@ -113,6 +106,7 @@ function toModel(row: ModelRow): ModelSummary {
     capabilities: JSON.parse(row.capabilities_json) as Capability[],
     enabled: row.enabled === 1,
     source: row.source,
+    sortOrder: row.sort_order,
   }
 }
 
@@ -131,10 +125,10 @@ function toAiCall(row: AiCallRow): AiCall {
   }
 }
 
-const CONNECTION_COLUMNS = `id, name, base_url, key_mask, priority, enabled,
+const CONNECTION_COLUMNS = `id, name, base_url, key_mask, enabled,
   data_classes_json, last_checked_at, last_ok, last_failure`
 const MODEL_COLUMNS = `id, connection_id, provider_model_id, capabilities_json,
-  enabled, source`
+  enabled, source, sort_order`
 const CALL_COLUMNS = `id, created_at, purpose, connection_name, provider_model_id,
   outcome, latency_ms, fell_back, input_tokens, output_tokens`
 
@@ -144,7 +138,7 @@ export async function listConnections(
   const result = await database
     .prepare(
       `SELECT ${CONNECTION_COLUMNS}
-       FROM ai_connections ORDER BY priority ASC, id ASC`,
+       FROM ai_connections ORDER BY name ASC, id ASC`,
     )
     .all<ConnectionRow>()
   return result.results.map(toConnection)
@@ -184,9 +178,9 @@ export async function createConnection(
   await database
     .prepare(
       `INSERT INTO ai_connections
-       (id, name, base_url, key_iv, key_ciphertext, key_mask, priority, enabled,
+       (id, name, base_url, key_iv, key_ciphertext, key_mask, enabled,
         data_classes_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       connection.id,
@@ -195,7 +189,6 @@ export async function createConnection(
       connection.secret.iv,
       connection.secret.ciphertext,
       connection.secret.keyMask,
-      connection.priority,
       connection.enabled ? 1 : 0,
       JSON.stringify(connection.dataClasses),
       connection.createdAt,
@@ -211,7 +204,6 @@ export async function updateConnection(
   const common = [
     connection.name,
     connection.baseURL,
-    connection.priority,
     connection.enabled ? 1 : 0,
     JSON.stringify(connection.dataClasses),
     connection.updatedAt,
@@ -220,7 +212,7 @@ export async function updateConnection(
     await database
       .prepare(
         `UPDATE ai_connections
-         SET name = ?, base_url = ?, priority = ?, enabled = ?,
+         SET name = ?, base_url = ?, enabled = ?,
              data_classes_json = ?, updated_at = ?, key_iv = ?,
              key_ciphertext = ?, key_mask = ?
          WHERE id = ?`,
@@ -238,7 +230,7 @@ export async function updateConnection(
   await database
     .prepare(
       `UPDATE ai_connections
-       SET name = ?, base_url = ?, priority = ?, enabled = ?,
+       SET name = ?, base_url = ?, enabled = ?,
            data_classes_json = ?, updated_at = ?
        WHERE id = ?`,
     )
@@ -264,14 +256,14 @@ export async function listModels(
     ? await database
         .prepare(
           `SELECT ${MODEL_COLUMNS} FROM ai_models
-           WHERE connection_id = ? ORDER BY provider_model_id ASC, id ASC`,
+           WHERE connection_id = ? ORDER BY sort_order ASC, id ASC`,
         )
         .bind(connectionId)
         .all<ModelRow>()
     : await database
         .prepare(
           `SELECT ${MODEL_COLUMNS} FROM ai_models
-           ORDER BY connection_id ASC, provider_model_id ASC, id ASC`,
+           ORDER BY sort_order ASC, id ASC`,
         )
         .all<ModelRow>()
   return result.results.map(toModel)
@@ -297,8 +289,9 @@ export async function createModel(
     .prepare(
       `INSERT INTO ai_models
        (id, connection_id, provider_model_id, capabilities_json, enabled,
-        source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        source, sort_order, created_at)
+       VALUES (?, ?, ?, ?, ?, ?,
+        (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ai_models), ?)`,
     )
     .bind(
       model.id,
@@ -333,64 +326,70 @@ export async function deleteModel(
   await database.prepare('DELETE FROM ai_models WHERE id = ?').bind(id).run()
 }
 
-export async function insertDiscoveredModels(
+export async function insertModels(
   database: D1Database,
   connectionId: string,
-  providerModelIds: readonly string[],
+  models: readonly { providerModelId: string; capabilities: Capability[] }[],
   createdAt: string,
 ): Promise<void> {
-  const uniqueIds = new Set(providerModelIds)
-  if (uniqueIds.size === 0) return
+  const seen = new Set<string>()
   const statements = []
-  for (const providerModelId of uniqueIds) {
+  for (const { providerModelId, capabilities } of models) {
+    if (seen.has(providerModelId)) continue
+    seen.add(providerModelId)
     statements.push(
       database
         .prepare(
           `INSERT INTO ai_models
            (id, connection_id, provider_model_id, capabilities_json, enabled,
-            source, created_at)
-           VALUES (?, ?, ?, '["chat"]', 1, 'discovered', ?)
+            source, sort_order, created_at)
+           VALUES (?, ?, ?, ?, 1, 'discovered',
+            (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ai_models), ?)
            ON CONFLICT DO NOTHING`,
         )
-        .bind(crypto.randomUUID(), connectionId, providerModelId, createdAt),
+        .bind(
+          crypto.randomUUID(),
+          connectionId,
+          providerModelId,
+          JSON.stringify(capabilities),
+          createdAt,
+        ),
     )
   }
-  await database.batch(statements)
+  if (statements.length > 0) await database.batch(statements)
 }
 
-export async function getCapabilityDefaults(
+/**
+ * Swaps the order of two models. When their sort_order values are equal,
+ * every model is first renumbered 1..n in its current order.
+ */
+export async function swapModelOrder(
   database: D1Database,
-): Promise<CapabilityDefaults> {
-  const result = await database
-    .prepare('SELECT capability, model_id FROM ai_defaults')
-    .all<DefaultRow>()
-  const defaults: CapabilityDefaults = {}
-  for (const row of result.results as DefaultRow[]) {
-    if (row.capability === 'chat' || row.capability === 'structured-output')
-      defaults[row.capability] = row.model_id
-  }
-  return defaults
-}
-
-export async function setDefaultModel(
-  database: D1Database,
-  capability: Capability,
-  modelId: string | null,
+  firstId: string,
+  secondId: string,
 ): Promise<void> {
-  if (modelId === null) {
-    await database
-      .prepare('DELETE FROM ai_defaults WHERE capability = ?')
-      .bind(capability)
-      .run()
-    return
-  }
-  await database
-    .prepare(
-      `INSERT INTO ai_defaults (capability, model_id) VALUES (?, ?)
-       ON CONFLICT(capability) DO UPDATE SET model_id = excluded.model_id`,
+  const first = await getModel(database, firstId)
+  const second = await getModel(database, secondId)
+  if (!first || !second) return
+  if (first.sortOrder === second.sortOrder) {
+    const all = await listModels(database)
+    await database.batch(
+      all.map((model, index) =>
+        database
+          .prepare('UPDATE ai_models SET sort_order = ? WHERE id = ?')
+          .bind(index + 1, model.id),
+      ),
     )
-    .bind(capability, modelId)
-    .run()
+    return swapModelOrder(database, firstId, secondId)
+  }
+  await database.batch([
+    database
+      .prepare('UPDATE ai_models SET sort_order = ? WHERE id = ?')
+      .bind(second.sortOrder, first.id),
+    database
+      .prepare('UPDATE ai_models SET sort_order = ? WHERE id = ?')
+      .bind(first.sortOrder, second.id),
+  ])
 }
 
 export async function recordAiCall(
@@ -453,7 +452,6 @@ export async function updateConnectionResult(
 export async function resetAiStores(database: D1Database): Promise<void> {
   await database.batch([
     database.prepare('DELETE FROM ai_calls'),
-    database.prepare('DELETE FROM ai_defaults'),
     database.prepare('DELETE FROM ai_models'),
     database.prepare('DELETE FROM ai_connections'),
   ])

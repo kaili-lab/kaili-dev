@@ -1,4 +1,4 @@
-import { classifyFailure } from '#/features/ai-routing'
+import { FAILURE_TEXT, classifyFailure } from '#/features/ai-routing'
 import type { FailureKind } from '#/features/ai-routing'
 
 export type FetchImpl = (
@@ -16,23 +16,8 @@ export type OpenAiError = {
   message: string
 }
 
-const FAILURE_MESSAGES: Record<FailureKind, string> = {
-  timeout: '请求超时',
-  network: '网络错误',
-  redirect: '上游返回重定向，已拒绝',
-  'rate-limited': '上游限流',
-  'server-error': '上游服务错误',
-  'auth-failed': 'API key 无效或无权限',
-  'model-missing': '模型不存在',
-  'bad-request': '上游拒绝了请求',
-  'bad-format': '上游返回格式不对',
-  config: '配置错误',
-  'no-eligible-connection': '没有允许发送这类内容的可用连接',
-  deadline: '超过总等待时间',
-}
-
 function openAiError(kind: FailureKind): OpenAiError {
-  return { kind, message: FAILURE_MESSAGES[kind] }
+  return { kind, message: FAILURE_TEXT[kind] }
 }
 
 export function isOpenAiError(error: unknown): error is OpenAiError {
@@ -40,7 +25,7 @@ export function isOpenAiError(error: unknown): error is OpenAiError {
   const candidate = error as Partial<OpenAiError>
   return (
     typeof candidate.kind === 'string' &&
-    Object.hasOwn(FAILURE_MESSAGES, candidate.kind) &&
+    Object.hasOwn(FAILURE_TEXT, candidate.kind) &&
     typeof candidate.message === 'string' &&
     candidate.message.length <= 120
   )

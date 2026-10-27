@@ -154,7 +154,6 @@ export const aiConnections = sqliteTable(
     keyIv: text('key_iv').notNull(),
     keyCiphertext: text('key_ciphertext').notNull(),
     keyMask: text('key_mask').notNull(),
-    priority: integer('priority').notNull(),
     enabled: integer('enabled').notNull(),
     dataClassesJson: text('data_classes_json').notNull().default('["public"]'),
     lastCheckedAt: text('last_checked_at'),
@@ -180,6 +179,7 @@ export const aiModels = sqliteTable(
     capabilitiesJson: text('capabilities_json').notNull().default('["chat"]'),
     enabled: integer('enabled').notNull().default(1),
     source: text('source').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
     createdAt: text('created_at').notNull(),
   },
   (table) => [
@@ -194,13 +194,6 @@ export const aiModels = sqliteTable(
     ),
   ],
 )
-
-export const aiDefaults = sqliteTable('ai_defaults', {
-  capability: text('capability').primaryKey(),
-  modelId: text('model_id')
-    .notNull()
-    .references(() => aiModels.id, { onDelete: 'cascade' }),
-})
 
 export const aiCalls = sqliteTable(
   'ai_calls',

@@ -1,10 +1,13 @@
 import { chatCompletion, isOpenAiError } from '#/features/ai-openai.server'
 import type { ChatMessage, FetchImpl } from '#/features/ai-openai.server'
-import { canTryNext, selectCandidates } from '#/features/ai-routing'
+import {
+  canTryNext,
+  selectCandidates,
+  skipsConnection,
+} from '#/features/ai-routing'
 import type { Capability, DataClass, FailureKind } from '#/features/ai-routing'
 import { decryptSecret } from '#/features/ai-secrets'
 import {
-  getCapabilityDefaults,
   getConnectionSecret,
   listConnections,
   listModels,
@@ -75,15 +78,13 @@ export async function invokeChat({
     return result
   }
 
-  const [connections, models, defaults] = await Promise.all([
+  const [connections, models] = await Promise.all([
     listConnections(database),
     listModels(database),
-    getCapabilityDefaults(database),
   ])
   const selection = selectCandidates({
     connections,
     models,
-    defaults,
     request: {
       capability,
       dataClasses,
@@ -97,14 +98,17 @@ export async function invokeChat({
     return finish({ ok: false, kind: 'deadline' }, 'deadline')
   }
 
-  const firstConnectionId = selection.candidates[0]?.connection.id
+  const firstCandidate = selection.candidates[0]
+  const skippedConnections = new Set<string>()
   const decryptedKeys = new Map<string, string>()
   let lastFailure: FailureKind = 'no-eligible-connection'
 
-  for (const { connection, model } of selection.candidates) {
+  for (const candidate of selection.candidates) {
+    const { connection, model } = candidate
+    if (skippedConnections.has(connection.id)) continue
     connectionName = connection.name
     providerModelId = model.providerModelId
-    if (connection.id !== firstConnectionId) fellBack = true
+    if (candidate !== firstCandidate) fellBack = true
 
     let apiKey = decryptedKeys.get(connection.id)
     if (apiKey === undefined) {
@@ -174,6 +178,7 @@ export async function invokeChat({
       if (!canTryNext(error.kind)) {
         return finish({ ok: false, kind: error.kind }, error.kind)
       }
+      if (skipsConnection(error.kind)) skippedConnections.add(connection.id)
     }
   }
 

@@ -20,7 +20,7 @@ const connectionRow = (page: Page, name: string) =>
     has: page.getByRole('link', { name, exact: true }),
   })
 
-test('lists masked connections and marks AI 接入 as the current section', async ({
+test('lists masked platforms and marks AI 接入 as the current section', async ({
   page,
 }) => {
   await open(page, '/admin/ai')
@@ -32,13 +32,15 @@ test('lists masked connections and marks AI 接入 as the current section', asyn
   const backup = connectionRow(page, '备用中转')
   await expect(primary).toContainText('https://ai-mock.test/down/v1')
   await expect(primary).toContainText('sk-…0000')
-  await expect(primary).toContainText('1')
+  await expect(page.getByRole('columnheader', { name: '优先级' })).toHaveCount(
+    0,
+  )
   await expect(primary).toContainText('已发布内容、文章草稿')
   await expect(backup).toContainText('https://ai-mock.test/ok/v1')
   expect(await page.content()).not.toContain('sk-test-0000')
 })
 
-test('validates a new connection and defaults its data class to public', async ({
+test('validates a new platform and defaults its data class to public', async ({
   page,
 }) => {
   await open(page, '/admin/ai/new')
@@ -47,13 +49,13 @@ test('validates a new connection and defaults its data class to public', async (
 
   await page.getByLabel('baseURL').fill('http://example.com')
   await page.getByLabel('API key').fill('sk-new-test-0000')
-  await page.getByRole('button', { name: '保存连接' }).click()
+  await page.getByRole('button', { name: '保存平台' }).click()
   await expect(page.getByText('请填写名称', { exact: true })).toBeVisible()
   await expect(page.getByText(/只允许 HTTPS 地址/)).toBeVisible()
 
-  await page.getByLabel('名称').fill('新连接')
+  await page.getByLabel('名称').fill('新平台')
   await page.getByLabel('baseURL').fill('https://example.com/v1/')
-  await page.getByRole('button', { name: '保存连接' }).click()
+  await page.getByRole('button', { name: '保存平台' }).click()
   await expect(page).toHaveURL(/\/admin\/ai\/[0-9a-f-]{36}$/)
   await expect(page.getByText('sk-…0000', { exact: true })).toBeVisible()
   await expect(page.getByLabel('已发布内容')).toBeChecked()
@@ -78,67 +80,82 @@ test('tests successful and failing connections without writing models', async ({
   ).toHaveCount(1)
 })
 
-test('queries models idempotently and saves the structured-output default', async ({
+test('queries models into a checklist and adds only the selected ones', async ({
   page,
 }) => {
   await open(page, '/admin/ai/ai-backup')
   await page.getByRole('button', { name: '查询模型' }).click()
   await expect(page.getByRole('status')).toHaveText('模型查询完成')
+  await expect(page.getByLabel('选择 mock-chat')).toBeVisible()
+  await expect(page.getByLabel('选择 mock-json')).toHaveCount(0)
+  await expect(
+    page.getByRole('cell', { name: 'mock-chat', exact: true }),
+  ).toHaveCount(0)
+
+  await page.getByLabel('选择 mock-chat').check()
+  await page.getByRole('button', { name: '添加所选模型' }).click()
   await expect(
     page.getByRole('cell', { name: 'mock-chat', exact: true }),
   ).toHaveCount(1)
 
   await page.getByRole('button', { name: '查询模型' }).click()
-  await expect(
-    page.getByRole('cell', { name: 'mock-chat', exact: true }),
-  ).toHaveCount(1)
+  await expect(page.getByText('没有新的模型')).toBeVisible()
   await expect(
     page.getByRole('cell', { name: 'mock-json', exact: true }),
   ).toHaveCount(1)
-
-  await open(page, '/admin/ai')
-  await page
-    .getByLabel('structured-output 默认模型')
-    .selectOption('ai-backup-mock-json')
-  await expect(page.getByRole('status')).toHaveText('默认模型已保存')
-  await page.reload()
-  await expect(page.getByLabel('structured-output 默认模型')).toHaveValue(
-    'ai-backup-mock-json',
-  )
 })
 
-test('manual structured-output capability automatically keeps chat', async ({
-  page,
-}) => {
+test('manual model type is prefilled from the model id', async ({ page }) => {
   await open(page, '/admin/ai/ai-backup')
-  await page.getByLabel('模型 ID').fill('manual-model')
+  await page.getByLabel('模型 ID').fill('my-embed-model')
+  await expect(page.getByLabel('模型类型')).toHaveValue('embedding')
   await page.getByRole('button', { name: '添加模型' }).click()
 
-  const row = page.getByRole('row').filter({ hasText: 'manual-model' })
+  const row = page.getByRole('row').filter({ hasText: 'my-embed-model' })
   await expect(row).toContainText('手动')
-  const chat = row.getByRole('checkbox', { name: 'manual-model chat' })
-  const structured = row.getByRole('checkbox', {
-    name: 'manual-model structured-output',
-  })
-  await expect(chat).toBeChecked()
-  await expect(structured).not.toBeChecked()
-  await structured.click()
-  await expect(structured).toBeChecked()
-  await expect(chat).toBeChecked()
+  await expect(
+    row.getByRole('checkbox', { name: 'my-embed-model 向量' }),
+  ).toBeChecked()
+  await expect(
+    row.getByRole('checkbox', { name: 'my-embed-model 对话' }),
+  ).not.toBeChecked()
+  await row.getByRole('checkbox', { name: 'my-embed-model 画图' }).click()
+  await expect(
+    row.getByRole('checkbox', { name: 'my-embed-model 画图' }),
+  ).toBeChecked()
 })
 
-test('deleting a connection requires confirmation with cancel focused', async ({
+test('call order can be moved and persists after reload', async ({ page }) => {
+  await open(page, '/admin/ai')
+  const items = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: '调用顺序' }) })
+    .getByRole('listitem')
+  await expect(items).toHaveCount(2)
+  await expect(items.nth(0)).toContainText('主中转 · mock-json')
+  await expect(items.nth(1)).toContainText('备用中转 · mock-json')
+
+  await page.getByRole('button', { name: '下移 主中转 · mock-json' }).click()
+  await expect(items.nth(0)).toContainText('备用中转 · mock-json')
+  await expect(items.nth(1)).toContainText('主中转 · mock-json')
+
+  await page.reload()
+  await expect(items.nth(0)).toContainText('备用中转 · mock-json')
+  await expect(items.nth(1)).toContainText('主中转 · mock-json')
+})
+
+test('deleting a platform requires confirmation with cancel focused', async ({
   page,
 }) => {
   await open(page, '/admin/ai/ai-backup')
-  await page.getByRole('button', { name: '删除连接' }).click()
+  await page.getByRole('button', { name: '删除平台' }).click()
   const dialog = page.getByRole('alertdialog')
   await expect(dialog.getByRole('button', { name: '取消' })).toBeFocused()
   await dialog.getByRole('button', { name: '取消' }).click()
   await expect(dialog).toBeHidden()
   await expect(page).toHaveURL(/\/admin\/ai\/ai-backup$/)
 
-  await page.getByRole('button', { name: '删除连接' }).click()
+  await page.getByRole('button', { name: '删除平台' }).click()
   await dialog.getByRole('button', { name: '删除', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/ai$/)
   await expect(
@@ -185,7 +202,7 @@ test('new draft offers slug candidates without saving or replacing the typed slu
     const call = history.getByRole('row').filter({ hasText: 'slug-candidates' })
     await expect(call).toHaveCount(1)
     await expect(call).toContainText('成功')
-    await expect(call).toContainText('已切换连接')
+    await expect(call).toContainText('已切换备用模型')
   } finally {
     await history.close()
   }
@@ -196,14 +213,14 @@ test('published articles never offer slug candidates', async ({ page }) => {
   await expect(page.getByRole('button', { name: '生成候选' })).toHaveCount(0)
 })
 
-test('connections restricted to published content cannot receive a draft', async ({
+test('platforms restricted to published content cannot receive a draft', async ({
   page,
 }) => {
   for (const id of ['ai-primary', 'ai-backup']) {
     await open(page, `/admin/ai/${id}`)
     await page.getByLabel('文章草稿').uncheck()
-    await page.getByRole('button', { name: '保存连接' }).click()
-    await expect(page.getByRole('status')).toHaveText('连接已保存')
+    await page.getByRole('button', { name: '保存平台' }).click()
+    await expect(page.getByRole('status')).toHaveText('平台已保存')
   }
 
   await open(page, '/admin/posts/new')
@@ -211,7 +228,7 @@ test('connections restricted to published content cannot receive a draft', async
   await page.getByLabel('摘要').fill('摘要')
   await page.getByRole('button', { name: '生成候选' }).click()
   await expect(page.getByRole('alert')).toHaveText(
-    '没有允许发送这类内容的可用连接',
+    '没有可用的模型：确认调用顺序里有已启用的模型，且所属平台允许发送这类内容',
   )
 })
 

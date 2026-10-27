@@ -26,6 +26,7 @@ const migrations = [
   '0006_withdrawn_taxonomy.sql',
   '0007_withdrawn_guards.sql',
   '0008_ai_connections.sql',
+  '0009_ai_model_order.sql',
 ]
 const masterKey = Buffer.from('a'.repeat(32)).toString('base64')
 const apiKey = 'sk-test-0000'
@@ -81,7 +82,6 @@ async function addConnection(database, overrides = {}) {
     id: 'connection-main',
     name: 'Main',
     baseURL: 'https://main.test/v1',
-    priority: 1,
     enabled: true,
     dataClasses: ['draft'],
     ...overrides,
@@ -139,7 +139,6 @@ async function addPrimaryAndBackup(database) {
     id: 'connection-backup',
     name: 'Backup',
     baseURL: 'https://backup.test/v1',
-    priority: 2,
   })
   await addModel(database, {
     id: 'model-backup',
@@ -181,15 +180,89 @@ describe('T8.3 AI invocation routing', () => {
       ])
       expect(await listConnections(database)).toEqual([
         expect.objectContaining({
-          name: 'Main',
-          lastOk: false,
-          lastFailure: 'server-error',
-        }),
-        expect.objectContaining({
           name: 'Backup',
           lastOk: true,
           lastFailure: null,
         }),
+        expect.objectContaining({
+          name: 'Main',
+          lastOk: false,
+          lastFailure: 'server-error',
+        }),
+      ])
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('skips the rest of a platform after a platform-level failure', async () => {
+    const { sqlite, database } = databaseFixture()
+    try {
+      await addConnection(database)
+      await addModel(database)
+      await addModel(database, {
+        id: 'model-main-2',
+        providerModelId: 'provider-main-2',
+      })
+      await addConnection(database, {
+        id: 'connection-backup',
+        name: 'Backup',
+        baseURL: 'https://backup.test/v1',
+      })
+      await addModel(database, {
+        id: 'model-backup',
+        connectionId: 'connection-backup',
+        providerModelId: 'provider-backup',
+      })
+      const fetchImpl = vi.fn(async (url) =>
+        String(url).includes('main.test')
+          ? globalThis.Response.json({ error: 'down' }, { status: 503 })
+          : successResponse('from backup'),
+      )
+
+      await expect(invokeChat(input(database, { fetchImpl }))).resolves.toEqual(
+        {
+          ok: true,
+          text: 'from backup',
+          connectionName: 'Backup',
+          providerModelId: 'provider-backup',
+        },
+      )
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      expect(await listRecentAiCalls(database, 20)).toEqual([
+        expect.objectContaining({ outcome: 'ok', fellBack: true }),
+      ])
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('tries the next model on the same platform after model-missing', async () => {
+    const { sqlite, database } = databaseFixture()
+    try {
+      await addConnection(database)
+      await addModel(database)
+      await addModel(database, {
+        id: 'model-main-2',
+        providerModelId: 'provider-main-2',
+      })
+      const fetchImpl = vi.fn(async (_url, init) =>
+        JSON.parse(String(init?.body)).model === 'provider-main'
+          ? globalThis.Response.json({ error: 'gone' }, { status: 404 })
+          : successResponse('second model'),
+      )
+
+      await expect(invokeChat(input(database, { fetchImpl }))).resolves.toEqual(
+        {
+          ok: true,
+          text: 'second model',
+          connectionName: 'Main',
+          providerModelId: 'provider-main-2',
+        },
+      )
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      expect(await listRecentAiCalls(database, 20)).toEqual([
+        expect.objectContaining({ outcome: 'ok', fellBack: true }),
       ])
     } finally {
       sqlite.close()
