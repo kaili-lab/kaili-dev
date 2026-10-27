@@ -320,6 +320,7 @@
   .ad-add-model .ad-field:first-child {
     flex: 1;
     min-width: 0;
+    max-width: 41rem;
   }
   .ad-add-model .ad-field:not(:first-child) {
     flex: none;
@@ -330,11 +331,47 @@
   .ad-nowrap {
     white-space: nowrap;
   }
+  .ad-wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
   .ad-table .ad-select-auto {
     width: auto;
   }
-  .ad-dialog:has(.ad-pick-table) {
+  .ad-dialog:has(.ad-pick-scroll) {
+    display: flex;
+    flex-direction: column;
     width: min(560px, calc(100vw - 32px));
+    max-height: calc(100dvh - 64px);
+    overflow: hidden;
+  }
+  .ad-dialog:has(.ad-pick-scroll) > * {
+    flex: none;
+  }
+  .ad-pick-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ad-pick-bar .ui-input {
+    flex: 1;
+    min-width: 0;
+  }
+  .ad-dialog .ad-pick-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+  .ad-pick-table th {
+    background: var(--paper);
+  }
+  .ad-pick-table .ad-select-auto {
+    flex: none;
+  }
+  .ad-pick-empty {
+    margin: 0;
+    padding: 24px 0;
+    color: var(--mute);
+    text-align: center;
   }
   .ad-order {
     margin: 0;

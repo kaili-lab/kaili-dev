@@ -11,6 +11,7 @@ import {
   saveAiConnection,
   saveAiModel,
   testAiConnection,
+  tryAiModel,
   type AiConnectionValidationError,
   type AiConnectionView,
   type AiOverview,
@@ -78,6 +79,15 @@ function Feedback({ message }: { message: Message }) {
       {message.text}
     </p>
   ) : null
+}
+
+function failureText(error: string): string {
+  if (error === 'base-url-invalid') return VALIDATION_LABELS['base-url-invalid']
+  if (error === 'key-required') return '请填写 API key'
+  if (error === 'master-key') return '未配置 AI_MASTER_KEY'
+  return error in FAILURE_TEXT
+    ? FAILURE_TEXT[error as keyof typeof FAILURE_TEXT]
+    : FAILURE_TEXT.config
 }
 
 function connectionResult(connection: AiOverview['connections'][number]) {
@@ -306,6 +316,17 @@ export function AiConnectionPage({
     { id: string; capability: Capability; selected: boolean }[] | null
   >(null)
   const [deleting, setDeleting] = useState(false)
+  const [search, setSearch] = useState('')
+  const [discarding, setDiscarding] = useState(false)
+  const [trials, setTrials] = useState<
+    Record<string, { pending: true } | { ok: boolean; text: string }>
+  >({})
+
+  const selectedCount = found?.filter((item) => item.selected).length ?? 0
+  const needle = search.trim().toLowerCase()
+  const visible = (found ?? []).filter((item) =>
+    item.id.toLowerCase().includes(needle),
+  )
 
   const hasError = (error: AiConnectionValidationError) =>
     errors.includes(error)
@@ -364,15 +385,15 @@ export function AiConnectionPage({
     try {
       const result = discover
         ? await discoverAiModels({ data: { id: connection.id } })
-        : await testAiConnection({ data: { id: connection.id } })
+        : await testAiConnection({
+            data: {
+              id: connection.id,
+              baseURL,
+              key: replaceKey ? key : '',
+            },
+          })
       if (!result.ok) {
-        setMessage({
-          ok: false,
-          text:
-            result.error === 'master-key'
-              ? '未配置 AI_MASTER_KEY'
-              : FAILURE_TEXT[result.error],
-        })
+        setMessage({ ok: false, text: failureText(result.error) })
         await router.invalidate()
         return
       }
@@ -380,6 +401,7 @@ export function AiConnectionPage({
         const saved = new Set(
           initial?.models.map((model) => model.providerModelId),
         )
+        setSearch('')
         setFound(
           result.modelIds
             .filter((id) => !saved.has(id))
@@ -398,6 +420,52 @@ export function AiConnectionPage({
     } finally {
       setBusy(false)
     }
+  }
+
+  async function testForm() {
+    setBusy(true)
+    setMessage(null)
+    try {
+      const result = await testAiConnection({
+        data: {
+          id: connection?.id ?? null,
+          baseURL,
+          key: replaceKey ? key : '',
+        },
+      })
+      setMessage(
+        result.ok
+          ? { ok: true, text: '测试成功' }
+          : { ok: false, text: failureText(result.error) },
+      )
+      if (connection) await router.invalidate()
+    } catch {
+      setMessage({ ok: false, text: genericFailure })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function tryModel(id: string) {
+    setTrials((current) => ({ ...current, [id]: { pending: true } }))
+    let outcome: { ok: boolean; text: string }
+    try {
+      const result = await tryAiModel({ data: { id } })
+      outcome = result.ok
+        ? {
+            ok: true,
+            text: `成功 · ${(result.latencyMs / 1000).toFixed(1)} 秒`,
+          }
+        : { ok: false, text: result.error }
+    } catch {
+      outcome = { ok: false, text: genericFailure }
+    }
+    setTrials((current) => ({ ...current, [id]: outcome }))
+  }
+
+  function closePicker() {
+    if (found?.some((item) => item.selected)) setDiscarding(true)
+    else setFound(null)
   }
 
   async function addModel(event: FormEvent) {
@@ -438,10 +506,8 @@ export function AiConnectionPage({
 
   async function addFound() {
     if (!connection || !found) return
-    if (!found.some((item) => item.selected)) {
-      setFound(null)
-      return
-    }
+    const count = found.filter((item) => item.selected).length
+    if (count === 0) return
     setBusy(true)
     setMessage(null)
     try {
@@ -461,7 +527,10 @@ export function AiConnectionPage({
         return
       }
       setFound(null)
-      setMessage({ ok: true, text: '模型已添加' })
+      setMessage({
+        ok: true,
+        text: `已添加 ${count} 个模型，已排到调用顺序末尾`,
+      })
       await router.invalidate()
     } catch {
       setMessage({ ok: false, text: genericFailure })
@@ -635,16 +704,16 @@ export function AiConnectionPage({
             >
               保存平台
             </button>
+            <button
+              type="button"
+              className="ui-button"
+              disabled={busy}
+              onClick={() => void testForm()}
+            >
+              测试连接
+            </button>
             {connection ? (
               <>
-                <button
-                  type="button"
-                  className="ui-button"
-                  disabled={busy}
-                  onClick={() => void check(false)}
-                >
-                  测试连接
-                </button>
                 <button
                   type="button"
                   className="ui-button"
@@ -774,14 +843,44 @@ export function AiConnectionPage({
                       {model.source === 'discovered' ? '查询' : '手动'}
                     </td>
                     <td data-label="操作">
-                      <button
-                        type="button"
-                        className="ad-link-button ad-danger-text"
-                        disabled={busy}
-                        onClick={() => void removeOneModel(model.id)}
-                      >
-                        删除
-                      </button>
+                      <div className="ad-cell-actions">
+                        {model.enabled &&
+                        model.capabilities.includes('chat') ? (
+                          <button
+                            type="button"
+                            className="ad-link-button"
+                            disabled={
+                              busy || 'pending' in (trials[model.id] ?? {})
+                            }
+                            aria-label={`试调用 ${model.providerModelId}`}
+                            onClick={() => void tryModel(model.id)}
+                          >
+                            试调用
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="ad-link-button ad-danger-text"
+                          disabled={busy}
+                          onClick={() => void removeOneModel(model.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                      {(() => {
+                        const trial = trials[model.id]
+                        if (!trial) return null
+                        if ('pending' in trial)
+                          return <span className="ad-time">试调用中…</span>
+                        return (
+                          <span
+                            className={trial.ok ? 'ad-time' : 'ad-error'}
+                            role={trial.ok ? 'status' : 'alert'}
+                          >
+                            {trial.text}
+                          </span>
+                        )
+                      })()}
                     </td>
                   </tr>
                 ))
@@ -807,76 +906,113 @@ export function AiConnectionPage({
       {found ? (
         <FormDialog
           title="选择要添加的模型"
-          submit="添加所选模型"
+          submit={`添加所选模型（${selectedCount}）`}
+          submitDisabled={selectedCount === 0 || busy}
           onSubmit={() => void addFound()}
-          onClose={() => setFound(null)}
+          onClose={closePicker}
         >
           {found.length === 0 ? (
             <p className="ad-dialog-text">没有新的模型</p>
           ) : (
-            <table className="ad-table ad-pick-table">
-              <thead>
-                <tr>
-                  <th scope="col">选择</th>
-                  <th scope="col">模型 ID</th>
-                  <th scope="col">类型</th>
-                </tr>
-              </thead>
-              <tbody>
-                {found.map((item) => (
-                  <tr key={item.id}>
-                    <td data-label="选择">
-                      <input
-                        type="checkbox"
-                        aria-label={`选择 ${item.id}`}
-                        checked={item.selected}
-                        onChange={(event) =>
-                          setFound(
-                            found.map((other) =>
-                              other.id === item.id
-                                ? { ...other, selected: event.target.checked }
-                                : other,
-                            ),
-                          )
-                        }
-                      />
-                    </td>
-                    <td data-label="模型 ID" className="ad-nowrap">
-                      {item.id}
-                    </td>
-                    <td data-label="类型">
-                      <select
-                        className="ui-input ad-select-auto"
-                        aria-label={`${item.id} 类型`}
-                        value={item.capability}
-                        onChange={(event) =>
-                          setFound(
-                            found.map((other) =>
-                              other.id === item.id
-                                ? {
-                                    ...other,
-                                    capability: event.target
-                                      .value as Capability,
-                                  }
-                                : other,
-                            ),
-                          )
-                        }
-                      >
-                        {CAPABILITIES.map((capability) => (
-                          <option key={capability} value={capability}>
-                            {CAPABILITY_LABELS[capability]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <>
+              <div className="ad-pick-bar">
+                <input
+                  className="ui-input"
+                  type="search"
+                  aria-label="搜索模型"
+                  placeholder="搜索模型 ID"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+                <span className="ad-time ad-nowrap">
+                  显示 {visible.length} / {found.length} 个
+                </span>
+              </div>
+              <div className="ad-pick-scroll">
+                {visible.length === 0 ? (
+                  <p className="ad-pick-empty">没有匹配的模型</p>
+                ) : (
+                  <table className="ad-table ad-pick-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">选择</th>
+                        <th scope="col">模型 ID</th>
+                        <th scope="col">类型</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visible.map((item) => (
+                        <tr key={item.id}>
+                          <td data-label="选择">
+                            <input
+                              type="checkbox"
+                              aria-label={`选择 ${item.id}`}
+                              checked={item.selected}
+                              onChange={(event) =>
+                                setFound(
+                                  found.map((other) =>
+                                    other.id === item.id
+                                      ? {
+                                          ...other,
+                                          selected: event.target.checked,
+                                        }
+                                      : other,
+                                  ),
+                                )
+                              }
+                            />
+                          </td>
+                          <td data-label="模型 ID" className="ad-wrap-anywhere">
+                            {item.id}
+                          </td>
+                          <td data-label="类型">
+                            <select
+                              className="ui-input ad-select-auto"
+                              aria-label={`${item.id} 类型`}
+                              value={item.capability}
+                              onChange={(event) =>
+                                setFound(
+                                  found.map((other) =>
+                                    other.id === item.id
+                                      ? {
+                                          ...other,
+                                          capability: event.target
+                                            .value as Capability,
+                                        }
+                                      : other,
+                                  ),
+                                )
+                              }
+                            >
+                              {CAPABILITIES.map((capability) => (
+                                <option key={capability} value={capability}>
+                                  {CAPABILITY_LABELS[capability]}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
           )}
         </FormDialog>
       ) : null}
+
+      <ConfirmDialog
+        open={discarding}
+        title={`放弃已选的 ${selectedCount} 个模型？`}
+        description="放弃后，已勾选的模型不会添加。"
+        confirm="放弃"
+        onConfirm={() => {
+          setDiscarding(false)
+          setFound(null)
+        }}
+        onCancel={() => setDiscarding(false)}
+      />
 
       <ConfirmDialog
         open={deleting}

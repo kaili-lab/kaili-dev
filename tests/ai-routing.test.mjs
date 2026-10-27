@@ -161,6 +161,16 @@ describe('T8.1 candidate selection', () => {
     ).toEqual({ ok: false, kind: 'config' })
   })
 
+  it('accepts an explicit model with no data classes even on a restricted platform', () => {
+    const selected = selectCandidates({
+      connections: [connection({ dataClasses: ['public'] })],
+      models: [model()],
+      request: { capability: 'chat', dataClasses: [], modelId: 'model-a' },
+    })
+
+    expect(ids(selected)).toEqual(['model-a'])
+  })
+
   it('orders candidates by sort order across connections', () => {
     const selected = selectCandidates({
       connections: [connection(), connection({ id: 'connection-b' })],

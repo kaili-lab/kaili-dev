@@ -250,9 +250,114 @@ async function checkConnection(
 
 export const testAiConnection = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
+  .validator((input: unknown) => {
+    const value = object(input)
+    return {
+      id: value.id === null ? null : text(value.id, 'id'),
+      baseURL: text(value.baseURL, 'baseURL'),
+      key: text(value.key, 'key'),
+    }
+  })
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | { ok: true; modelIds: string[] }
+      | { ok: false; error: FailureKind | 'master-key' | 'key-required' }
+      | { ok: false; error: 'base-url-invalid' }
+    > => {
+      const baseURL = data.baseURL.trim()
+      const invalid = validateConnectionInput({
+        name: 'x',
+        baseURL,
+        dataClasses: ['public'],
+      }).includes('base-url-invalid')
+      if (invalid) return { ok: false, error: 'base-url-invalid' }
+      const normalized = normalizeBaseURL(baseURL)
+
+      const database = await runtimeDatabase()
+      let apiKey = data.key.trim()
+      let usedSaved = false
+      if (apiKey === '') {
+        if (data.id === null) return { ok: false, error: 'key-required' }
+        const secret = await getConnectionSecret(database, data.id)
+        if (!secret) return { ok: false, error: 'config' }
+        try {
+          apiKey = await decryptSecret(secret, await masterKey())
+        } catch (error) {
+          if (error instanceof AiConfigError)
+            return { ok: false, error: 'master-key' }
+          return { ok: false, error: 'config' }
+        }
+        usedSaved = true
+      }
+
+      const saved =
+        usedSaved && data.id !== null
+          ? await getConnection(database, data.id)
+          : null
+      const record = saved?.baseURL === normalized
+      const checkedAt = new Date().toISOString()
+      try {
+        const modelIds = await listProviderModels({
+          baseURL: normalized,
+          apiKey,
+          signal: AbortSignal.timeout(10_000),
+        })
+        if (record && data.id !== null)
+          await updateConnectionResult(database, data.id, checkedAt, true, null)
+        return { ok: true, modelIds }
+      } catch (error) {
+        const failure = isOpenAiError(error) ? error.kind : 'network'
+        if (record && data.id !== null)
+          await updateConnectionResult(
+            database,
+            data.id,
+            checkedAt,
+            false,
+            failure,
+          )
+        return { ok: false, error: failure }
+      }
+    },
+  )
+
+export const tryAiModel = createServerFn({ method: 'POST' })
+  .middleware([requireAdminFunctionSession])
   .validator(idRequest)
-  .handler(async ({ data }) =>
-    checkConnection(await runtimeDatabase(), data.id),
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      { ok: true; latencyMs: number } | { ok: false; error: string }
+    > => {
+      const database = await runtimeDatabase()
+      if (!(await getModel(database, data.id)))
+        return { ok: false, error: FAILURE_TEXT.config }
+
+      const masterKeyB64 = await masterKey()
+      try {
+        if (atob(masterKeyB64).length !== 32)
+          return { ok: false, error: '未配置 AI_MASTER_KEY' }
+      } catch {
+        return { ok: false, error: '未配置 AI_MASTER_KEY' }
+      }
+
+      const startedAt = Date.now()
+      const result = await invokeChat({
+        database,
+        masterKeyB64,
+        purpose: 'model-test',
+        capability: 'chat',
+        dataClasses: [],
+        modelId: data.id,
+        messages: [{ role: 'user', content: 'Reply with OK.' }],
+        maxTokens: 20,
+        deadlineMs: 15_000,
+      })
+      if (!result.ok) return { ok: false, error: FAILURE_TEXT[result.kind] }
+      return { ok: true, latencyMs: Date.now() - startedAt }
+    },
   )
 
 export const discoverAiModels = createServerFn({ method: 'POST' })

@@ -66,6 +66,7 @@ export function ConfirmDialog({
 export function FormDialog({
   title,
   submit,
+  submitDisabled = false,
   onSubmit,
   onClose,
   children,
@@ -73,6 +74,7 @@ export function FormDialog({
   title: string
   /** Label of the action button, e.g. 保存 or 创建并选中. */
   submit: string
+  submitDisabled?: boolean
   onSubmit: () => void
   onClose: () => void
   children: ReactNode
@@ -97,6 +99,7 @@ export function FormDialog({
             <button
               type="button"
               className="ui-button ad-primary"
+              disabled={submitDisabled}
               onClick={onSubmit}
             >
               {submit}
