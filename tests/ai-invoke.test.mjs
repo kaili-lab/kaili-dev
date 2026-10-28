@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { URL } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it, vi } from 'vitest'
-import { invokeChat } from '../src/features/ai-invoke.server.ts'
+import { invokeChat, invokeModel } from '../src/features/ai-invoke.server.ts'
 import { encryptSecret, maskSecret } from '../src/features/ai-secrets.ts'
 import {
   createConnection,
@@ -27,6 +27,7 @@ const migrations = [
   '0007_withdrawn_guards.sql',
   '0008_ai_connections.sql',
   '0009_ai_model_order.sql',
+  '0010_ai_model_capability.sql',
 ]
 const masterKey = Buffer.from('a'.repeat(32)).toString('base64')
 const apiKey = 'sk-test-0000'
@@ -101,7 +102,7 @@ async function addModel(database, overrides = {}) {
     id: 'model-main',
     connectionId: 'connection-main',
     providerModelId: 'provider-main',
-    capabilities: ['chat'],
+    capability: 'chat',
     enabled: true,
     source: 'manual',
     createdAt: now,
@@ -432,6 +433,35 @@ describe('T8.3 AI invocation routing', () => {
           providerModelId: null,
           outcome: 'no-eligible-connection',
         }),
+      ])
+    } finally {
+      sqlite.close()
+    }
+  })
+
+  it('applies attemptTimeoutMs to a custom run', async () => {
+    const { sqlite, database } = databaseFixture()
+    try {
+      await addConnection(database)
+      await addModel(database)
+      const { messages, maxTokens, ...common } = input(database)
+      void messages
+      void maxTokens
+
+      await expect(
+        invokeModel({
+          ...common,
+          attemptTimeoutMs: 1,
+          run: ({ signal }) =>
+            new Promise((_resolve, reject) => {
+              signal.addEventListener('abort', () =>
+                reject({ kind: 'timeout', message: '请求超时' }),
+              )
+            }),
+        }),
+      ).resolves.toEqual({ ok: false, kind: 'timeout' })
+      expect(await listRecentAiCalls(database, 20)).toEqual([
+        expect.objectContaining({ outcome: 'timeout' }),
       ])
     } finally {
       sqlite.close()

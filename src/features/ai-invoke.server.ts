@@ -17,17 +17,39 @@ import {
 import type { AiCallOutcome } from '#/server/data/ai'
 import type { D1Database } from '#/server/data/db'
 
-export type InvokeChatInput = {
+export type InvokeModelInput<T> = {
   database: D1Database
   masterKeyB64: string
-  fetchImpl?: FetchImpl
   purpose: string
   capability: Capability
   dataClasses: DataClass[]
   modelId?: string
+  deadlineMs: number
+  attemptTimeoutMs?: number
+  run: (attempt: {
+    baseURL: string
+    apiKey: string
+    model: string
+    signal: AbortSignal
+  }) => Promise<{ value: T; inputTokens?: number; outputTokens?: number }>
+}
+
+export type InvokeModelResult<T> =
+  | {
+      ok: true
+      value: T
+      connectionName: string
+      providerModelId: string
+    }
+  | { ok: false; kind: FailureKind }
+
+export type InvokeChatInput = Omit<
+  InvokeModelInput<string>,
+  'run' | 'attemptTimeoutMs'
+> & {
+  fetchImpl?: FetchImpl
   messages: ChatMessage[]
   maxTokens: number
-  deadlineMs: number
 }
 
 export type InvokeChatResult =
@@ -40,17 +62,43 @@ export type InvokeChatResult =
   | { ok: false; kind: FailureKind }
 
 export async function invokeChat({
+  fetchImpl,
+  messages,
+  maxTokens,
+  ...common
+}: InvokeChatInput): Promise<InvokeChatResult> {
+  const result = await invokeModel({
+    ...common,
+    run: async (attempt) => {
+      const completion = await chatCompletion({
+        ...attempt,
+        messages,
+        maxTokens,
+        fetchImpl,
+      })
+      return { ...completion, value: completion.text }
+    },
+  })
+  if (!result.ok) return result
+  return {
+    ok: true,
+    text: result.value,
+    connectionName: result.connectionName,
+    providerModelId: result.providerModelId,
+  }
+}
+
+export async function invokeModel<T>({
   database,
   masterKeyB64,
-  fetchImpl,
   purpose,
   capability,
   dataClasses,
   modelId,
-  messages,
-  maxTokens,
   deadlineMs,
-}: InvokeChatInput): Promise<InvokeChatResult> {
+  attemptTimeoutMs = 10_000,
+  run,
+}: InvokeModelInput<T>): Promise<InvokeModelResult<T>> {
   const startedAt = Date.now()
   const deadlineAt = startedAt + Math.max(0, deadlineMs)
   let connectionName: string | null = null
@@ -58,11 +106,11 @@ export async function invokeChat({
   let fellBack = false
 
   const finish = async (
-    result: InvokeChatResult,
+    result: InvokeModelResult<T>,
     outcome: AiCallOutcome,
     inputTokens: number | null = null,
     outputTokens: number | null = null,
-  ): Promise<InvokeChatResult> => {
+  ): Promise<InvokeModelResult<T>> => {
     await recordAiCall(database, {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -129,17 +177,14 @@ export async function invokeChat({
     if (remainingMs <= 0) {
       return finish({ ok: false, kind: 'deadline' }, 'deadline')
     }
-    const signal = AbortSignal.timeout(Math.min(remainingMs, 10_000))
+    const signal = AbortSignal.timeout(Math.min(remainingMs, attemptTimeoutMs))
 
     try {
-      const completion = await chatCompletion({
+      const completion = await run({
         baseURL: connection.baseURL,
         apiKey,
         model: model.providerModelId,
-        messages,
-        maxTokens,
         signal,
-        fetchImpl,
       })
       await updateConnectionResult(
         database,
@@ -154,7 +199,7 @@ export async function invokeChat({
       return finish(
         {
           ok: true,
-          text: completion.text,
+          value: completion.value,
           connectionName: connection.name,
           providerModelId: model.providerModelId,
         },

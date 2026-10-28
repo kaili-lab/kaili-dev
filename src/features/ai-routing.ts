@@ -30,7 +30,7 @@ export type ModelSummary = {
   id: string
   connectionId: string
   providerModelId: string
-  capabilities: Capability[]
+  capability: Capability
   enabled: boolean
   source: 'discovered' | 'manual'
   sortOrder: number
@@ -150,7 +150,7 @@ export function selectCandidates({
         connection.dataClasses.includes(dataClass),
       ) &&
       model?.enabled &&
-      model.capabilities.includes(request.capability)
+      model.capability === request.capability
     ) {
       return { ok: true, candidates: [{ connection, model }] }
     }
@@ -171,7 +171,7 @@ export function selectCandidates({
         connection.dataClasses.includes(dataClass),
       ) &&
       model.enabled &&
-      model.capabilities.includes(request.capability)
+      model.capability === request.capability
     ) {
       candidates.push({ connection, model })
     }

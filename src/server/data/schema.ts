@@ -176,7 +176,7 @@ export const aiModels = sqliteTable(
       .notNull()
       .references(() => aiConnections.id, { onDelete: 'cascade' }),
     providerModelId: text('provider_model_id').notNull(),
-    capabilitiesJson: text('capabilities_json').notNull().default('["chat"]'),
+    capability: text('capability').notNull().default('chat'),
     enabled: integer('enabled').notNull().default(1),
     source: text('source').notNull(),
     sortOrder: integer('sort_order').notNull().default(0),
@@ -188,6 +188,10 @@ export const aiModels = sqliteTable(
       table.providerModelId,
     ),
     check('ai_models_enabled_check', sql`${table.enabled} IN (0, 1)`),
+    check(
+      'ai_models_capability_check',
+      sql`${table.capability} IN ('chat', 'image', 'embedding')`,
+    ),
     check(
       'ai_models_source_check',
       sql`${table.source} IN ('discovered', 'manual')`,

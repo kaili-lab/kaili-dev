@@ -48,6 +48,7 @@
 | T8.1 – T8.5 AI 接入层与 slug 候选 | 其他模型执行 / Claude 验收（D-186） | ✅ 已执行并经 Claude 验收（2026-10-27）。验收中修正一处：主密钥格式正确但无法解密已存密文时，调用器原先抛出未捕获异常，现返回 `config` 并记一条调用，补回归测试。未提交、未推送 |
 | T8.6 最终验收 | Claude / Kai Li | Claude 部分 ✅：check 559/559、build、dry-run、后台 Playwright 62/62；`dist` 与测试输出中无 `sk-test-0000` / `ai-mock.test` / `mockFetch`；无新依赖，分层 lint 通过。**待 Kai Li：**真实中转连接手测；生产 `AI_MASTER_KEY`、远端迁移 `0008` 与部署（推送 `main` 即触发）由 Kai Li 决定 |
 | T8.7 平台与模型挑选改版（D-187） | Claude 规格 / Sonnet 执行 / Claude 验收 | 代码完成，未提交：迁移 `0009`（去平台优先级与默认模型表，模型加调用顺序，能力改为对话 / 画图 / 向量）；查询模型改为勾选后保存；调用顺序可上移下移；平台级失败跳过同平台模型。check 571/571、build、dry-run、后台 Playwright 63/63。待 Kai Li 本地测试后提交；远端迁移 `0009` 随推送 `main` 自动执行 |
+| T8.8 模型类型单选与按类型试调用（D-188） | Claude 规格 / Sonnet 执行 / Claude 验收 | 代码完成并提交：迁移 `0010`（`capabilities_json` 折算为单值 `capability`）；适配层加 `/embeddings`、`/images/generations`；调用器抽出通用 `invokeModel`；试调用按类型分派，画图为「试生成」；新增或改成向量的模型自动试调用。check 576/576、build、dry-run、后台 Playwright 69/69。远端迁移 `0010` 随推送 `main` 自动执行 |
 
 规则：
 

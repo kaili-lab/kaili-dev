@@ -1,9 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { takenSlugs } from '#/features/admin.functions'
-import { invokeChat } from '#/features/ai-invoke.server'
+import { invokeChat, invokeModel } from '#/features/ai-invoke.server'
 import { parseSlugCandidates, slugPrompt } from '#/features/ai-slug'
 
 import {
+  createEmbedding,
+  generateImage,
   isOpenAiError,
   listModels as listProviderModels,
 } from '#/features/ai-openai.server'
@@ -85,15 +87,11 @@ function connectionRequest(input: unknown) {
 }
 
 const capabilityValues: Capability[] = ['chat', 'image', 'embedding']
-function capabilities(value: unknown): Capability[] {
-  const values = strings(value, 'capabilities')
-  if (
-    values.some(
-      (capability) => !capabilityValues.includes(capability as Capability),
-    )
-  )
-    throw new Error('Invalid capabilities')
-  return values as Capability[]
+function capability(value: unknown): Capability {
+  const name = text(value, 'capability')
+  if (!capabilityValues.includes(name as Capability))
+    throw new Error('Invalid capability')
+  return name as Capability
 }
 
 async function masterKey(): Promise<string> {
@@ -332,8 +330,8 @@ export const tryAiModel = createServerFn({ method: 'POST' })
       { ok: true; latencyMs: number } | { ok: false; error: string }
     > => {
       const database = await runtimeDatabase()
-      if (!(await getModel(database, data.id)))
-        return { ok: false, error: FAILURE_TEXT.config }
+      const model = await getModel(database, data.id)
+      if (!model) return { ok: false, error: FAILURE_TEXT.config }
 
       const masterKeyB64 = await masterKey()
       try {
@@ -344,17 +342,48 @@ export const tryAiModel = createServerFn({ method: 'POST' })
       }
 
       const startedAt = Date.now()
-      const result = await invokeChat({
+      const common = {
         database,
         masterKeyB64,
         purpose: 'model-test',
-        capability: 'chat',
         dataClasses: [],
         modelId: data.id,
-        messages: [{ role: 'user', content: 'Reply with OK.' }],
-        maxTokens: 20,
-        deadlineMs: 15_000,
-      })
+      }
+      // Each type is checked against the endpoint it is meant for.
+      const result =
+        model.capability === 'embedding'
+          ? await invokeModel({
+              ...common,
+              capability: 'embedding',
+              deadlineMs: 15_000,
+              run: async (attempt) => {
+                const embedding = await createEmbedding({
+                  ...attempt,
+                  input: 'ok',
+                })
+                return { ...embedding, value: embedding.dimensions }
+              },
+            })
+          : model.capability === 'image'
+            ? await invokeModel({
+                ...common,
+                capability: 'image',
+                deadlineMs: 60_000,
+                attemptTimeoutMs: 60_000,
+                run: async (attempt) => ({
+                  value: await generateImage({
+                    ...attempt,
+                    prompt: 'A small red circle on a white background.',
+                  }),
+                }),
+              })
+            : await invokeChat({
+                ...common,
+                capability: 'chat',
+                messages: [{ role: 'user', content: 'Reply with OK.' }],
+                maxTokens: 20,
+                deadlineMs: 15_000,
+              })
       if (!result.ok) return { ok: false, error: FAILURE_TEXT[result.kind] }
       return { ok: true, latencyMs: Date.now() - startedAt }
     },
@@ -374,7 +403,7 @@ export const addAiModel = createServerFn({ method: 'POST' })
     return {
       connectionId: text(value.connectionId, 'connectionId'),
       providerModelId: text(value.providerModelId, 'providerModelId'),
-      capabilities: capabilities(value.capabilities),
+      capability: capability(value.capability),
     }
   })
   .handler(async ({ data }) => {
@@ -392,16 +421,17 @@ export const addAiModel = createServerFn({ method: 'POST' })
     )
       return { ok: false as const, error: 'duplicate' as const }
 
+    const id = crypto.randomUUID()
     await createModel(database, {
-      id: crypto.randomUUID(),
+      id,
       connectionId: data.connectionId,
       providerModelId,
-      capabilities: data.capabilities,
+      capability: data.capability,
       enabled: true,
       source: 'manual',
       createdAt: new Date().toISOString(),
     })
-    return { ok: true as const }
+    return { ok: true as const, id, capability: data.capability }
   })
 
 export const saveAiModel = createServerFn({ method: 'POST' })
@@ -410,7 +440,7 @@ export const saveAiModel = createServerFn({ method: 'POST' })
     const value = object(input)
     return {
       id: text(value.id, 'id'),
-      capabilities: capabilities(value.capabilities),
+      capability: capability(value.capability),
       enabled: boolean(value.enabled, 'enabled'),
     }
   })
@@ -418,7 +448,7 @@ export const saveAiModel = createServerFn({ method: 'POST' })
     const database = await runtimeDatabase()
     if (!(await getModel(database, data.id)))
       return { ok: false as const, error: 'config' as const }
-    await updateModel(database, data.id, data.capabilities, data.enabled)
+    await updateModel(database, data.id, data.capability, data.enabled)
     return { ok: true as const }
   })
 
@@ -444,7 +474,7 @@ export const addAiModels = createServerFn({ method: 'POST' })
             model.providerModelId,
             'providerModelId',
           ).trim(),
-          capabilities: capabilities(model.capabilities),
+          capability: capability(model.capability),
         }
       }),
     }
@@ -458,7 +488,7 @@ export const addAiModels = createServerFn({ method: 'POST' })
         (model) => model.providerModelId,
       ),
     )
-    await insertModels(
+    const added = await insertModels(
       database,
       data.connectionId,
       data.models.filter(
@@ -467,29 +497,26 @@ export const addAiModels = createServerFn({ method: 'POST' })
       ),
       new Date().toISOString(),
     )
-    return { ok: true as const }
+    return { ok: true as const, added }
   })
 
 export const moveAiModel = createServerFn({ method: 'POST' })
   .middleware([requireAdminFunctionSession])
   .validator((input: unknown) => {
     const value = object(input)
-    const capability = text(value.capability, 'capability')
-    if (!capabilityValues.includes(capability as Capability))
-      throw new Error('Invalid capability')
     const direction = text(value.direction, 'direction')
     if (direction !== 'up' && direction !== 'down')
       throw new Error('Invalid direction')
     return {
       id: text(value.id, 'id'),
-      capability: capability as Capability,
+      capability: capability(value.capability),
       direction,
     }
   })
   .handler(async ({ data }) => {
     const database = await runtimeDatabase()
     const order = (await listModels(database)).filter(
-      (model) => model.enabled && model.capabilities.includes(data.capability),
+      (model) => model.enabled && model.capability === data.capability,
     )
     const index = order.findIndex((model) => model.id === data.id)
     const current = order[index]

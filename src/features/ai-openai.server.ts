@@ -252,3 +252,117 @@ export async function chatCompletion({
     ...(outputTokens === undefined ? {} : { outputTokens }),
   }
 }
+
+export async function createEmbedding({
+  baseURL,
+  apiKey,
+  model,
+  input,
+  signal,
+  fetchImpl,
+}: {
+  baseURL: string
+  apiKey: string
+  model: string
+  input: string
+  signal: AbortSignal
+  fetchImpl?: FetchImpl
+}): Promise<{ dimensions: number; inputTokens?: number }> {
+  const response = await request({
+    baseURL,
+    apiKey,
+    path: '/embeddings',
+    signal,
+    fetchImpl,
+    init: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, input }),
+    },
+  })
+  const body = await responseJson(response)
+  const first =
+    typeof body === 'object' &&
+    body !== null &&
+    'data' in body &&
+    Array.isArray(body.data)
+      ? body.data[0]
+      : undefined
+  const embedding =
+    typeof first === 'object' && first !== null && 'embedding' in first
+      ? first.embedding
+      : undefined
+  if (
+    !Array.isArray(embedding) ||
+    embedding.length === 0 ||
+    embedding.some((value) => typeof value !== 'number')
+  ) {
+    throw openAiError('bad-format')
+  }
+
+  const usage =
+    typeof body === 'object' &&
+    body !== null &&
+    'usage' in body &&
+    typeof body.usage === 'object' &&
+    body.usage !== null
+      ? body.usage
+      : undefined
+  const inputTokens =
+    usage && 'prompt_tokens' in usage ? usage.prompt_tokens : undefined
+  if (inputTokens !== undefined && typeof inputTokens !== 'number') {
+    throw openAiError('bad-format')
+  }
+
+  return {
+    dimensions: embedding.length,
+    ...(inputTokens === undefined ? {} : { inputTokens }),
+  }
+}
+
+export async function generateImage({
+  baseURL,
+  apiKey,
+  model,
+  prompt,
+  signal,
+  fetchImpl,
+}: {
+  baseURL: string
+  apiKey: string
+  model: string
+  prompt: string
+  signal: AbortSignal
+  fetchImpl?: FetchImpl
+}): Promise<Record<string, never>> {
+  const response = await request({
+    baseURL,
+    apiKey,
+    path: '/images/generations',
+    signal,
+    fetchImpl,
+    init: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt, n: 1 }),
+    },
+  })
+  const body = await responseJson(response)
+  const first =
+    typeof body === 'object' &&
+    body !== null &&
+    'data' in body &&
+    Array.isArray(body.data)
+      ? body.data[0]
+      : undefined
+  const hasContent = (key: 'b64_json' | 'url') =>
+    typeof first === 'object' &&
+    first !== null &&
+    key in first &&
+    typeof first[key] === 'string' &&
+    first[key].length > 0
+  if (!hasContent('b64_json') && !hasContent('url')) {
+    throw openAiError('bad-format')
+  }
+  return {}
+}

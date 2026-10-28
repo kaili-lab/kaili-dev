@@ -325,7 +325,8 @@
   .ad-add-model .ad-field:not(:first-child) {
     flex: none;
   }
-  .ad-pick-table td {
+  .ad-pick-table td,
+  .ad-model-table td {
     vertical-align: middle;
   }
   .ad-nowrap {

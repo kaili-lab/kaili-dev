@@ -18,9 +18,12 @@ import {
   updateModel,
 } from '../src/server/data/ai.ts'
 
-const migrations = ['0008_ai_connections.sql', '0009_ai_model_order.sql'].map(
-  (name) =>
-    readFileSync(new URL(`../drizzle/${name}`, import.meta.url), 'utf8'),
+const migrations = [
+  '0008_ai_connections.sql',
+  '0009_ai_model_order.sql',
+  '0010_ai_model_capability.sql',
+].map((name) =>
+  readFileSync(new URL(`../drizzle/${name}`, import.meta.url), 'utf8'),
 )
 
 function d1(database) {
@@ -143,9 +146,9 @@ describe('T8.2 AI data access', () => {
         database,
         'connection-a',
         [
-          { providerModelId: 'model-a', capabilities: ['chat'] },
-          { providerModelId: 'model-b', capabilities: ['embedding'] },
-          { providerModelId: 'model-a', capabilities: ['image'] },
+          { providerModelId: 'model-a', capability: 'chat' },
+          { providerModelId: 'model-b', capability: 'embedding' },
+          { providerModelId: 'model-a', capability: 'image' },
         ],
         '2026-10-27T00:00:00.000Z',
       )
@@ -153,18 +156,18 @@ describe('T8.2 AI data access', () => {
       const modelA = first.find((model) => model.providerModelId === 'model-a')
       expect(first).toHaveLength(2)
       expect(first.map((model) => model.sortOrder)).toEqual([1, 2])
-      expect(first.map((model) => model.capabilities)).toEqual([
-        ['chat'],
-        ['embedding'],
+      expect(first.map((model) => model.capability)).toEqual([
+        'chat',
+        'embedding',
       ])
 
-      await updateModel(database, modelA.id, ['chat', 'image'], false)
+      await updateModel(database, modelA.id, 'image', false)
       await insertModels(
         database,
         'connection-a',
         [
-          { providerModelId: 'model-a', capabilities: ['chat'] },
-          { providerModelId: 'model-c', capabilities: ['chat'] },
+          { providerModelId: 'model-a', capability: 'chat' },
+          { providerModelId: 'model-c', capability: 'chat' },
         ],
         '2026-10-27T01:00:00.000Z',
       )
@@ -177,7 +180,7 @@ describe('T8.2 AI data access', () => {
       ).toEqual(
         expect.objectContaining({
           id: modelA.id,
-          capabilities: ['chat', 'image'],
+          capability: 'image',
           enabled: false,
         }),
       )
@@ -195,7 +198,7 @@ describe('T8.2 AI data access', () => {
           id,
           connectionId: 'connection-a',
           providerModelId: id,
-          capabilities: ['chat'],
+          capability: 'chat',
           enabled: true,
           source: 'manual',
           createdAt: '2026-10-27T00:00:00.000Z',
@@ -229,7 +232,7 @@ describe('T8.2 AI data access', () => {
         id: 'model-a',
         connectionId: 'connection-a',
         providerModelId: 'provider-a',
-        capabilities: ['chat'],
+        capability: 'chat',
         enabled: true,
         source: 'manual',
         createdAt: '2026-10-27T00:00:00.000Z',

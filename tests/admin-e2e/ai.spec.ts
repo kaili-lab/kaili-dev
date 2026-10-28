@@ -206,16 +206,37 @@ test('manual model type is prefilled from the model id', async ({ page }) => {
 
   const row = page.getByRole('row').filter({ hasText: 'my-embed-model' })
   await expect(row).toContainText('手动')
-  await expect(
-    row.getByRole('checkbox', { name: 'my-embed-model 向量' }),
-  ).toBeChecked()
-  await expect(
-    row.getByRole('checkbox', { name: 'my-embed-model 对话' }),
-  ).not.toBeChecked()
-  await row.getByRole('checkbox', { name: 'my-embed-model 画图' }).click()
-  await expect(
-    row.getByRole('checkbox', { name: 'my-embed-model 画图' }),
-  ).toBeChecked()
+  const type = row.getByLabel('my-embed-model 类型')
+  await expect(type).toHaveValue('embedding')
+  await type.selectOption('image')
+  await expect(type).toHaveValue('image')
+})
+
+test('vector models are checked automatically, image models only on request', async ({
+  page,
+}) => {
+  await open(page, '/admin/ai/ai-backup')
+  const addModel = async (id: string, type: string) => {
+    await page.getByLabel('模型 ID').fill(id)
+    await page.getByLabel('模型类型').selectOption(type)
+    await page.getByRole('button', { name: '添加模型' }).click()
+    return page.getByRole('row').filter({ hasText: id })
+  }
+
+  const embed = await addModel('mock-embed', 'embedding')
+  await expect(embed).toContainText(/成功 · /)
+
+  // A chat-only mock answers the vector endpoint with a rejection.
+  const json = page.getByRole('row').filter({ hasText: 'mock-json' })
+  await json.getByLabel('mock-json 类型').selectOption('embedding')
+  await expect(json).toContainText('上游拒绝了请求')
+  await json.getByLabel('mock-json 类型').selectOption('chat')
+
+  const image = await addModel('mock-image', 'image')
+  await expect(image).not.toContainText('成功')
+  await expect(image).not.toContainText('上游')
+  await image.getByRole('button', { name: '试生成 mock-image' }).click()
+  await expect(image).toContainText(/成功 · /)
 })
 
 test('call order can be moved and persists after reload', async ({ page }) => {

@@ -293,4 +293,71 @@ describe('D1 migration chain', () => {
       database.close()
     }
   })
+
+  it('collapses AI model capability arrays into a single type', () => {
+    const database = new DatabaseSync(':memory:')
+    try {
+      database.exec('PRAGMA foreign_keys = ON')
+      for (const name of [
+        '0000_left_patch.sql',
+        '0001_nullable_article_slug.sql',
+        '0002_media_reference_guard.sql',
+        '0003_live_media_reference.sql',
+        '0004_concurrency_taxonomy_guards.sql',
+        '0005_article_withdrawal.sql',
+        '0006_withdrawn_taxonomy.sql',
+        '0007_withdrawn_guards.sql',
+        '0008_ai_connections.sql',
+        '0009_ai_model_order.sql',
+      ])
+        database.exec(migration(name))
+
+      database.exec(`
+        INSERT INTO ai_connections
+          (id, name, base_url, key_iv, key_ciphertext, key_mask, enabled,
+           created_at, updated_at)
+        VALUES
+          ('connection-1', 'Main', 'https://example.com/v1', 'iv', 'ciphertext',
+           'sk-…0000', 1, '2026-10-27', '2026-10-27');
+        INSERT INTO ai_models
+          (id, connection_id, provider_model_id, capabilities_json, source,
+           created_at)
+        VALUES
+          ('both', 'connection-1', 'both', '["chat","embedding"]', 'manual',
+           '2026-10-27'),
+          ('embedding', 'connection-1', 'embedding', '["embedding"]', 'manual',
+           '2026-10-27'),
+          ('image', 'connection-1', 'image', '["image"]', 'manual',
+           '2026-10-27'),
+          ('empty', 'connection-1', 'empty', '[]', 'manual', '2026-10-27');
+      `)
+
+      database.exec(migration('0010_ai_model_capability.sql'))
+
+      expect(
+        database
+          .prepare('SELECT id, capability FROM ai_models ORDER BY id')
+          .all(),
+      ).toEqual([
+        { id: 'both', capability: 'chat' },
+        { id: 'embedding', capability: 'embedding' },
+        { id: 'empty', capability: 'chat' },
+        { id: 'image', capability: 'image' },
+      ])
+      expect(
+        database
+          .prepare("SELECT name FROM pragma_table_info('ai_models')")
+          .all()
+          .map((column) => column.name),
+      ).not.toContain('capabilities_json')
+      expect(() =>
+        database.exec(
+          `UPDATE ai_models SET capability = 'speech' WHERE id = 'both'`,
+        ),
+      ).toThrow()
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    } finally {
+      database.close()
+    }
+  })
 })

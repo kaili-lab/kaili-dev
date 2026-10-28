@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { chatCompletion, listModels } from '../src/features/ai-openai.server.ts'
+import {
+  chatCompletion,
+  createEmbedding,
+  generateImage,
+  listModels,
+} from '../src/features/ai-openai.server.ts'
 
 const apiKey = 'sk-test-0000'
 const signal = () => globalThis.AbortSignal.timeout(1_000)
@@ -218,5 +223,102 @@ describe('T8.3 OpenAI-compatible adapter', () => {
       outputTokens: 8,
     })
     expect(networkFetch).not.toHaveBeenCalled()
+  })
+
+  it('creates an embedding and reports its dimensions and usage', async () => {
+    const fetchImpl = vi.fn(async () =>
+      globalThis.Response.json({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        usage: { prompt_tokens: 2 },
+      }),
+    )
+    const base = {
+      baseURL: 'https://example.com/v1',
+      apiKey,
+      model: 'embed-a',
+      input: 'ok',
+      signal: signal(),
+    }
+
+    await expect(createEmbedding({ ...base, fetchImpl })).resolves.toEqual({
+      dimensions: 3,
+      inputTokens: 2,
+    })
+    const [url, init] = fetchImpl.mock.calls[0]
+    expect(url).toBe('https://example.com/v1/embeddings')
+    expect(JSON.parse(init.body)).toEqual({ model: 'embed-a', input: 'ok' })
+
+    for (const body of [
+      {},
+      { data: [] },
+      { data: [{ embedding: [] }] },
+      { data: [{ embedding: ['a'] }] },
+      { data: [{ embedding: [1] }], usage: { prompt_tokens: 'x' } },
+    ]) {
+      await expect(
+        createEmbedding({
+          ...base,
+          fetchImpl: async () => globalThis.Response.json(body),
+        }),
+      ).rejects.toEqual({ kind: 'bad-format', message: '上游返回格式不对' })
+    }
+    await expect(
+      createEmbedding({
+        ...base,
+        fetchImpl: async () =>
+          globalThis.Response.json({ error: 'bad' }, { status: 400 }),
+      }),
+    ).rejects.toMatchObject({ kind: 'bad-request' })
+  })
+
+  it('generates an image without returning its content', async () => {
+    const fetchImpl = vi.fn(async () =>
+      globalThis.Response.json({ data: [{ b64_json: 'aGk=' }] }),
+    )
+    const base = {
+      baseURL: 'https://example.com/v1',
+      apiKey,
+      model: 'image-a',
+      prompt: 'A circle',
+      signal: signal(),
+    }
+
+    await expect(generateImage({ ...base, fetchImpl })).resolves.toEqual({})
+    const [url, init] = fetchImpl.mock.calls[0]
+    expect(url).toBe('https://example.com/v1/images/generations')
+    expect(JSON.parse(init.body)).toEqual({
+      model: 'image-a',
+      prompt: 'A circle',
+      n: 1,
+    })
+    await expect(
+      generateImage({
+        ...base,
+        fetchImpl: async () =>
+          globalThis.Response.json({ data: [{ url: 'https://x.test/a.png' }] }),
+      }),
+    ).resolves.toEqual({})
+
+    for (const body of [
+      {},
+      { data: [] },
+      { data: [{}] },
+      { data: [{ b64_json: '', url: '' }] },
+      { data: [{ url: 3 }] },
+    ]) {
+      await expect(
+        generateImage({
+          ...base,
+          fetchImpl: async () => globalThis.Response.json(body),
+        }),
+      ).rejects.toEqual({ kind: 'bad-format', message: '上游返回格式不对' })
+    }
+    await expect(
+      generateImage({
+        ...base,
+        fetchImpl: async () =>
+          globalThis.Response.json({ error: 'bad' }, { status: 400 }),
+      }),
+    ).rejects.toMatchObject({ kind: 'bad-request' })
   })
 })

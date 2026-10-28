@@ -29,7 +29,7 @@ type ModelRow = {
   id: string
   connection_id: string
   provider_model_id: string
-  capabilities_json: string
+  capability: Capability
   enabled: number
   source: 'discovered' | 'manual'
   sort_order: number
@@ -103,7 +103,7 @@ function toModel(row: ModelRow): ModelSummary {
     id: row.id,
     connectionId: row.connection_id,
     providerModelId: row.provider_model_id,
-    capabilities: JSON.parse(row.capabilities_json) as Capability[],
+    capability: row.capability,
     enabled: row.enabled === 1,
     source: row.source,
     sortOrder: row.sort_order,
@@ -127,7 +127,7 @@ function toAiCall(row: AiCallRow): AiCall {
 
 const CONNECTION_COLUMNS = `id, name, base_url, key_mask, enabled,
   data_classes_json, last_checked_at, last_ok, last_failure`
-const MODEL_COLUMNS = `id, connection_id, provider_model_id, capabilities_json,
+const MODEL_COLUMNS = `id, connection_id, provider_model_id, capability,
   enabled, source, sort_order`
 const CALL_COLUMNS = `id, created_at, purpose, connection_name, provider_model_id,
   outcome, latency_ms, fell_back, input_tokens, output_tokens`
@@ -288,7 +288,7 @@ export async function createModel(
   await database
     .prepare(
       `INSERT INTO ai_models
-       (id, connection_id, provider_model_id, capabilities_json, enabled,
+       (id, connection_id, provider_model_id, capability, enabled,
         source, sort_order, created_at)
        VALUES (?, ?, ?, ?, ?, ?,
         (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ai_models), ?)`,
@@ -297,7 +297,7 @@ export async function createModel(
       model.id,
       model.connectionId,
       model.providerModelId,
-      JSON.stringify(model.capabilities),
+      model.capability,
       model.enabled ? 1 : 0,
       model.source,
       model.createdAt,
@@ -308,14 +308,12 @@ export async function createModel(
 export async function updateModel(
   database: D1Database,
   id: string,
-  capabilities: Capability[],
+  capability: Capability,
   enabled: boolean,
 ): Promise<void> {
   await database
-    .prepare(
-      `UPDATE ai_models SET capabilities_json = ?, enabled = ? WHERE id = ?`,
-    )
-    .bind(JSON.stringify(capabilities), enabled ? 1 : 0, id)
+    .prepare(`UPDATE ai_models SET capability = ?, enabled = ? WHERE id = ?`)
+    .bind(capability, enabled ? 1 : 0, id)
     .run()
 }
 
@@ -329,34 +327,32 @@ export async function deleteModel(
 export async function insertModels(
   database: D1Database,
   connectionId: string,
-  models: readonly { providerModelId: string; capabilities: Capability[] }[],
+  models: readonly { providerModelId: string; capability: Capability }[],
   createdAt: string,
-): Promise<void> {
+): Promise<{ id: string; capability: Capability }[]> {
   const seen = new Set<string>()
   const statements = []
-  for (const { providerModelId, capabilities } of models) {
+  const inserted: { id: string; capability: Capability }[] = []
+  for (const { providerModelId, capability } of models) {
     if (seen.has(providerModelId)) continue
     seen.add(providerModelId)
+    const id = crypto.randomUUID()
+    inserted.push({ id, capability })
     statements.push(
       database
         .prepare(
           `INSERT INTO ai_models
-           (id, connection_id, provider_model_id, capabilities_json, enabled,
+           (id, connection_id, provider_model_id, capability, enabled,
             source, sort_order, created_at)
            VALUES (?, ?, ?, ?, 1, 'discovered',
             (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ai_models), ?)
            ON CONFLICT DO NOTHING`,
         )
-        .bind(
-          crypto.randomUUID(),
-          connectionId,
-          providerModelId,
-          JSON.stringify(capabilities),
-          createdAt,
-        ),
+        .bind(id, connectionId, providerModelId, capability, createdAt),
     )
   }
   if (statements.length > 0) await database.batch(statements)
+  return inserted
 }
 
 /**

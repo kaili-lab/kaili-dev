@@ -26,7 +26,7 @@ const baseModel = {
   id: 'model-a',
   connectionId: 'connection-a',
   providerModelId: 'provider-a',
-  capabilities: ['chat'],
+  capability: 'chat',
   enabled: true,
   source: 'manual',
   sortOrder: 1,
@@ -223,7 +223,7 @@ describe('T8.1 candidate selection', () => {
     const selected = selectCandidates({
       connections: [connection()],
       models: [
-        model({ id: 'image-model', capabilities: ['image'] }),
+        model({ id: 'image-model', capability: 'image' }),
         model({ id: 'chat-model', providerModelId: 'chat', sortOrder: 2 }),
       ],
       request: { capability: 'chat', dataClasses: ['draft'] },

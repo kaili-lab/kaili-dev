@@ -199,7 +199,7 @@ export function AiOverviewPage({ overview }: { overview: AiOverview }) {
         <h2>调用顺序</h2>
         {CAPABILITIES.map((capability) => {
           const order = overview.models.filter(
-            (model) => model.enabled && model.capabilities.includes(capability),
+            (model) => model.enabled && model.capability === capability,
           )
           return (
             <div key={capability}>
@@ -478,7 +478,7 @@ export function AiConnectionPage({
         data: {
           connectionId: connection.id,
           providerModelId: manualModel,
-          capabilities: [manualCapability],
+          capability: manualCapability,
         },
       })
       if (!result.ok) {
@@ -497,6 +497,8 @@ export function AiConnectionPage({
       setManualCapability('chat')
       setMessage({ ok: true, text: '模型已添加' })
       await router.invalidate()
+      // Vector models are cheap to check, so verify them right away.
+      if (result.capability === 'embedding') void tryModel(result.id)
     } catch {
       setMessage({ ok: false, text: genericFailure })
     } finally {
@@ -518,7 +520,7 @@ export function AiConnectionPage({
             .filter((item) => item.selected)
             .map((item) => ({
               providerModelId: item.id,
-              capabilities: [item.capability],
+              capability: item.capability,
             })),
         },
       })
@@ -532,6 +534,9 @@ export function AiConnectionPage({
         text: `已添加 ${count} 个模型，已排到调用顺序末尾`,
       })
       await router.invalidate()
+      for (const added of result.added) {
+        if (added.capability === 'embedding') void tryModel(added.id)
+      }
     } catch {
       setMessage({ ok: false, text: genericFailure })
     } finally {
@@ -541,8 +546,9 @@ export function AiConnectionPage({
 
   async function updateOneModel(
     id: string,
-    nextCapabilities: Capability[],
+    nextCapability: Capability,
     nextEnabled: boolean,
+    verify = false,
   ) {
     setBusy(true)
     setMessage(null)
@@ -550,7 +556,7 @@ export function AiConnectionPage({
       const result = await saveAiModel({
         data: {
           id,
-          capabilities: nextCapabilities,
+          capability: nextCapability,
           enabled: nextEnabled,
         },
       })
@@ -560,6 +566,7 @@ export function AiConnectionPage({
       }
       setMessage({ ok: true, text: '模型已保存' })
       await router.invalidate()
+      if (verify) void tryModel(id)
     } catch {
       setMessage({ ok: false, text: genericFailure })
     } finally {
@@ -772,11 +779,11 @@ export function AiConnectionPage({
               </button>
             </div>
           </form>
-          <table className="ad-table">
+          <table className="ad-table ad-model-table">
             <thead>
               <tr>
                 <th scope="col">模型 ID</th>
-                <th scope="col">能力</th>
+                <th scope="col">类型</th>
                 <th scope="col">启用</th>
                 <th scope="col">来源</th>
                 <th scope="col">操作</th>
@@ -793,31 +800,28 @@ export function AiConnectionPage({
                 initial.models.map((model) => (
                   <tr key={model.id}>
                     <td data-label="模型 ID">{model.providerModelId}</td>
-                    <td data-label="能力">
-                      <div className="ad-tags">
+                    <td data-label="类型">
+                      <select
+                        className="ui-input ad-select-auto"
+                        aria-label={`${model.providerModelId} 类型`}
+                        value={model.capability}
+                        disabled={busy}
+                        onChange={(event) => {
+                          const next = event.target.value as Capability
+                          void updateOneModel(
+                            model.id,
+                            next,
+                            model.enabled,
+                            next === 'embedding' && model.enabled,
+                          )
+                        }}
+                      >
                         {CAPABILITIES.map((capability) => (
-                          <label key={capability}>
-                            <input
-                              type="checkbox"
-                              aria-label={`${model.providerModelId} ${CAPABILITY_LABELS[capability]}`}
-                              checked={model.capabilities.includes(capability)}
-                              disabled={busy}
-                              onChange={(event) =>
-                                void updateOneModel(
-                                  model.id,
-                                  event.target.checked
-                                    ? [...model.capabilities, capability]
-                                    : model.capabilities.filter(
-                                        (item) => item !== capability,
-                                      ),
-                                  model.enabled,
-                                )
-                              }
-                            />
+                          <option key={capability} value={capability}>
                             {CAPABILITY_LABELS[capability]}
-                          </label>
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </td>
                     <td data-label="启用">
                       <div className="ad-tags">
@@ -830,7 +834,7 @@ export function AiConnectionPage({
                             onChange={(event) =>
                               void updateOneModel(
                                 model.id,
-                                model.capabilities,
+                                model.capability,
                                 event.target.checked,
                               )
                             }
@@ -844,18 +848,22 @@ export function AiConnectionPage({
                     </td>
                     <td data-label="操作">
                       <div className="ad-cell-actions">
-                        {model.enabled &&
-                        model.capabilities.includes('chat') ? (
+                        {model.enabled ? (
                           <button
                             type="button"
                             className="ad-link-button"
                             disabled={
                               busy || 'pending' in (trials[model.id] ?? {})
                             }
-                            aria-label={`试调用 ${model.providerModelId}`}
+                            aria-label={`${model.capability === 'image' ? '试生成' : '试调用'} ${model.providerModelId}`}
+                            title={
+                              model.capability === 'image'
+                                ? '会生成一张图，按平台价格计费'
+                                : undefined
+                            }
                             onClick={() => void tryModel(model.id)}
                           >
-                            试调用
+                            {model.capability === 'image' ? '试生成' : '试调用'}
                           </button>
                         ) : null}
                         <button
