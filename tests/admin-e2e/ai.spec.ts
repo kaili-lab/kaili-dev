@@ -212,7 +212,7 @@ test('manual model type is prefilled from the model id', async ({ page }) => {
   await expect(type).toHaveValue('image')
 })
 
-test('vector models are checked automatically, image models only on request', async ({
+test('vector models are checked automatically, image models have no trial', async ({
   page,
 }) => {
   await open(page, '/admin/ai/ai-backup')
@@ -235,8 +235,7 @@ test('vector models are checked automatically, image models only on request', as
   const image = await addModel('mock-image', 'image')
   await expect(image).not.toContainText('成功')
   await expect(image).not.toContainText('上游')
-  await image.getByRole('button', { name: '试生成 mock-image' }).click()
-  await expect(image).toContainText(/成功 · /)
+  await expect(image.getByRole('button', { name: /试/ })).toHaveCount(0)
 })
 
 test('call order can be moved and persists after reload', async ({ page }) => {

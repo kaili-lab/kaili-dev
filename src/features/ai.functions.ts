@@ -5,7 +5,6 @@ import { parseSlugCandidates, slugPrompt } from '#/features/ai-slug'
 
 import {
   createEmbedding,
-  generateImage,
   isOpenAiError,
   listModels as listProviderModels,
 } from '#/features/ai-openai.server'
@@ -332,6 +331,9 @@ export const tryAiModel = createServerFn({ method: 'POST' })
       const database = await runtimeDatabase()
       const model = await getModel(database, data.id)
       if (!model) return { ok: false, error: FAILURE_TEXT.config }
+      // Image calls differ per model and platform; they get no generic trial.
+      if (model.capability === 'image')
+        return { ok: false, error: '画图模型不支持试调用' }
 
       const masterKeyB64 = await masterKey()
       try {
@@ -364,26 +366,13 @@ export const tryAiModel = createServerFn({ method: 'POST' })
                 return { ...embedding, value: embedding.dimensions }
               },
             })
-          : model.capability === 'image'
-            ? await invokeModel({
-                ...common,
-                capability: 'image',
-                deadlineMs: 60_000,
-                attemptTimeoutMs: 60_000,
-                run: async (attempt) => ({
-                  value: await generateImage({
-                    ...attempt,
-                    prompt: 'A small red circle on a white background.',
-                  }),
-                }),
-              })
-            : await invokeChat({
-                ...common,
-                capability: 'chat',
-                messages: [{ role: 'user', content: 'Reply with OK.' }],
-                maxTokens: 20,
-                deadlineMs: 15_000,
-              })
+          : await invokeChat({
+              ...common,
+              capability: 'chat',
+              messages: [{ role: 'user', content: 'Reply with OK.' }],
+              maxTokens: 20,
+              deadlineMs: 15_000,
+            })
       if (!result.ok) return { ok: false, error: FAILURE_TEXT[result.kind] }
       return { ok: true, latencyMs: Date.now() - startedAt }
     },

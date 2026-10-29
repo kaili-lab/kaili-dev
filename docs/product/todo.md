@@ -101,6 +101,8 @@
 
 ## 杂项
 
+- [ ] AI 封面图（D-083，v2）写任务卡前先定：用途与尺寸（封面比例、是否兼作 1200×630 OG 图）、图片存 R2 的方式、选哪个平台和模型；调用方式写在代码里（D-189）。2026-10-28 比价（以当时官网为准）：硅基流动国内站 Kolors 免费、Z-Image-Turbo ¥0.10/张、Qwen-Image ¥0.30/张，国际站 FLUX.1-schnell $0.0014/张、Z-Image-Turbo $0.005/张、Qwen-Image $0.02/张；aihubmix qwen-image $0.036/张、qwen-image-2.1-turbo $0.0141/张、doubao-seedream-5-0-flash $0.0186/张、gemini-3.1-flash-image 约 $0.067/张（按输出图片 token 折算）；Cloudflare Workers AI `flux-1-schnell` 1024×1024、4 步约 $0.0006/张，每天 10,000 Neurons 免费额度约够 170 张，但只能通过 Workers AI 绑定调用，且 schnell 是 2024 年的快速版，不在当前画质排行榜上；Workers AI 上更好的是 `flux-2-klein-9b`（第一百万像素 $0.015）和 `flux-2-dev`（按步数计费）。画质参考 Artificial Analysis 竞技场 Elo（2026-04 快照，56 个模型）：gemini-3.1-flash-image 1257（第 2）、Seedream 4.0 1185、FLUX.2 dev 1146、FLUX.2 klein 9B 1133、Z-Image Turbo 1115、FLUX.2 klein 4B 1068、Qwen-Image 基础版 1058。选型时用同一提示词在候选模型上各出几张，由 Kai Li 目测决定。
+
 - [x] ~~域名：kaili.dev 沿用？~~ → D-098：新站占用 kaili.dev。
 - [x] ~~访问统计~~ → D-086：第一版不接入 Plausible、Umami 或其他统计服务；后续有明确分析需求时再讨论。
 - [x] ~~旧站迁移与下线时机~~ → D-098：不迁移；blog.kaili.dev 以后由 Kai Li 自行下线。

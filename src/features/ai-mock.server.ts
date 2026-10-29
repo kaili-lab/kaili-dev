@@ -44,16 +44,12 @@ export const mockFetch: FetchImpl = async (input, init) => {
       usage: { prompt_tokens: 12, completion_tokens: 8 },
     })
   }
-  if (endpoint === 'embeddings' || endpoint === 'images') {
-    const model = requestModel(init)
-    if (endpoint === 'embeddings' && model.includes('embed')) {
+  if (endpoint === 'embeddings') {
+    if (requestModel(init).includes('embed')) {
       return json({
         data: [{ embedding: [0.1, 0.2, 0.3] }],
         usage: { prompt_tokens: 1 },
       })
-    }
-    if (endpoint === 'images' && model.includes('image')) {
-      return json({ data: [{ b64_json: 'aGk=' }] })
     }
     return json({ error: 'unsupported-model' }, 400)
   }

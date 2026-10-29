@@ -848,22 +848,17 @@ export function AiConnectionPage({
                     </td>
                     <td data-label="操作">
                       <div className="ad-cell-actions">
-                        {model.enabled ? (
+                        {model.enabled && model.capability !== 'image' ? (
                           <button
                             type="button"
                             className="ad-link-button"
                             disabled={
                               busy || 'pending' in (trials[model.id] ?? {})
                             }
-                            aria-label={`${model.capability === 'image' ? '试生成' : '试调用'} ${model.providerModelId}`}
-                            title={
-                              model.capability === 'image'
-                                ? '会生成一张图，按平台价格计费'
-                                : undefined
-                            }
+                            aria-label={`试调用 ${model.providerModelId}`}
                             onClick={() => void tryModel(model.id)}
                           >
-                            {model.capability === 'image' ? '试生成' : '试调用'}
+                            试调用
                           </button>
                         ) : null}
                         <button
